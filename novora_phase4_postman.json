@@ -1,0 +1,264 @@
+{
+	"info": {
+		"_postman_id": "d4f9a2fb-efeb-4fb8-bb0e-440f279dcd32",
+		"name": "Novora Phase 4 APIs",
+		"description": "Postman collection for Novora Phase 4 - Chat & Messaging (Supabase BaaS integration).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Conversations",
+			"item": [
+				{
+					"name": "Start Conversation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user1_id\": \"{{USER_ID}}\",\n  \"user2_id\": \"other-user-uuid-here\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/conversations",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"conversations"
+							]
+						},
+						"description": "Starts a new 1-on-1 conversation. Replace other-user-uuid-here with a valid profile UUID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Recent Chats (Inbox Feed)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_recent_chats",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_recent_chats"
+							]
+						},
+						"description": "Fetches the list of active chats for the inbox with the last message, timestamps, and details."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Messages",
+			"item": [
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"conversation_id\": 1,\n  \"sender_id\": \"{{USER_ID}}\",\n  \"message_text\": \"Hey! Would love to swap books sometime.\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/messages",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"messages"
+							]
+						},
+						"description": "Sends a standard text message. Replace conversation_id with a valid conversation ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Exchange Request Card",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"conversation_id\": 1,\n  \"sender_id\": \"{{USER_ID}}\",\n  \"message_text\": \"Initiated an exchange request for 'The Shadow Lines'\",\n  \"is_exchange_card\": true,\n  \"exchange_book_title\": \"The Shadow Lines\",\n  \"exchange_status\": \"Requested\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/messages",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"messages"
+							]
+						},
+						"description": "Sends a book exchange card to negotiate a book swap."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message Stream for Chat",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_messages?conversation_id=eq.1&order=created_at.asc",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_messages"
+							],
+							"query": [
+								{
+									"key": "conversation_id",
+									"value": "eq.1"
+								},
+								{
+									"key": "order",
+									"value": "created_at.asc"
+								}
+							]
+						},
+						"description": "Gets all messages in chronological order for a single conversation ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Exchange Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Prefer",
+								"value": "return=representation",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"exchange_status\": \"Accepted\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/messages?id=eq.12",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"messages"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "eq.12",
+									"description": "Message ID of the exchange request card"
+								}
+							]
+						},
+						"description": "Updates the status of an exchange request (e.g. from 'Requested' to 'Accepted' or 'Completed')."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

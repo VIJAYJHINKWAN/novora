@@ -1,0 +1,361 @@
+{
+	"info": {
+		"_postman_id": "b2f9a2fb-efeb-4fb8-bb0e-220f279dcd30",
+		"name": "Novora Phase 2 APIs",
+		"description": "Postman collection for Novora Phase 2 - Home Feed & Library (Supabase BaaS integration).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Books",
+			"item": [
+				{
+					"name": "Add Book to Shelf",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"owner_id\": \"{{USER_ID}}\",\n  \"title\": \"The Shadow Lines\",\n  \"author\": \"Amitav Ghosh\",\n  \"genre\": \"Indian Lit\",\n  \"summary\": \"A sweeping novel about family, memory, and nationalism.\",\n  \"is_read\": true,\n  \"is_exchangeable\": true,\n  \"cover_res_id\": 3\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/books",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"books"
+							]
+						},
+						"description": "Adds a book to the user's shelf. Must be authenticated."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Home Feed Books",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_books",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_books"
+							]
+						},
+						"description": "Retrieves books for the Home Feed, joining owner information and checking if liked by the current user."
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Library Shelf",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_books?owner_id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_books"
+							],
+							"query": [
+								{
+									"key": "owner_id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Retrieves the logged-in user's own books for the Library Screen."
+					},
+					"response": []
+				},
+				{
+					"name": "Like a Book",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"book_id\": 1,\n  \"profile_id\": \"{{USER_ID}}\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/book_likes",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"book_likes"
+							]
+						},
+						"description": "Likes a book. Replace book_id with a valid book id."
+					},
+					"response": []
+				},
+				{
+					"name": "Unlike a Book",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/book_likes?book_id=eq.1&profile_id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"book_likes"
+							],
+							"query": [
+								{
+									"key": "book_id",
+									"value": "eq.1"
+								},
+								{
+									"key": "profile_id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Unlikes a book. Replace book_id with the corresponding liked book ID."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Stories & Reading Notes",
+			"item": [
+				{
+					"name": "Share a Reading Note",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profile_id\": \"{{USER_ID}}\",\n  \"book_title\": \"The Shadow Lines\",\n  \"note_text\": \"Finished reading. Beautiful prose and deep reflection on borders.\",\n  \"story_type\": \"Review\",\n  \"background_theme\": \"Cozy Cafe\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/reading_stories",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"reading_stories"
+							]
+						},
+						"description": "Publishes a reading note/story. Must be authenticated."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reading Notes Feed",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_stories",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_stories"
+							]
+						},
+						"description": "Retrieves the reading notes feed, joining author profiles and resolving if liked by the current user."
+					},
+					"response": []
+				},
+				{
+					"name": "Like a Story",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": 1,\n  \"profile_id\": \"{{USER_ID}}\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/story_likes",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"story_likes"
+							]
+						},
+						"description": "Likes a reading note/story. Replace story_id with a valid story ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Unlike a Story",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/story_likes?story_id=eq.1&profile_id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"story_likes"
+							],
+							"query": [
+								{
+									"key": "story_id",
+									"value": "eq.1"
+								},
+								{
+									"key": "profile_id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Unlikes a reading note/story. Replace story_id with a valid liked story ID."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

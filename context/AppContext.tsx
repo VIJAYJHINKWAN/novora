@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Book, Reader, Event, ChatMessage, ReadingStory, UserProfile, NavigationTab, AppScreen } from '../types';
-import { StorageService } from '../services/storage';
+import { supabase } from '../services/supabase';
 
 interface AppContextType {
   // Navigation & Screen States
@@ -89,40 +89,237 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [readingStories, setReadingStories] = useState<ReadingStory[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    name: "Aarav Sharma",
-    bio: "Bibliophile & software architect based in Indiranagar, Bengaluru.",
-    location: "Indiranagar, Bengaluru",
-    readingScore: 880,
-    stats: "Owned: 24 | Read: 42 | Wishlist: 15",
-    genres: "Indian Lit, Modern Fiction, Essays, Poetry",
-    goals: "Read 36 books in 2026",
-    verificationStatus: true,
-    streak: 14,
-    badges: ["Indie Curator", "Chai & Verse", "Local Envoy"],
+    name: "Reader",
+    bio: "",
+    location: "",
+    readingScore: 0,
+    stats: "Owned: 0 | Read: 0 | Wishlist: 0",
+    genres: "",
+    goals: "",
+    verificationStatus: false,
+    streak: 0,
+    badges: [],
     monthlyGoal: 4,
-    monthlyProgress: 3
+    monthlyProgress: 0
   });
 
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [showCreateStoryDialog, setShowCreateStoryDialog] = useState<boolean>(false);
 
-  // Load initial data
-  useEffect(() => {
-    (async () => {
-      const b = await StorageService.getBooks();
-      const r = await StorageService.getReaders();
-      const e = await StorageService.getEvents();
-      const m = await StorageService.getMessages();
-      const s = await StorageService.getStories();
-      const p = await StorageService.getProfile();
+  const refreshProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-      setBooks(b);
-      setReaders(r);
-      setEvents(e);
-      setMessages(m);
-      setReadingStories(s);
-      setUserProfile(p);
-    })();
+    if (error) {
+      console.error("Error fetching profile:", error);
+      return;
+    }
+    if (data) {
+      // Count books owned and read to generate stats
+      const { data: userBooks } = await supabase
+        .from('books')
+        .select('id, is_read')
+        .eq('owner_id', userId);
+
+      const ownedCount = userBooks ? userBooks.length : 0;
+      const readCount = userBooks ? userBooks.filter(b => b.is_read).length : 0;
+
+      setUserProfile({
+        name: data.name || 'Reader',
+        bio: data.bio || '',
+        location: data.location || '',
+        readingScore: data.reading_score || 0,
+        stats: `Owned: ${ownedCount} | Read: ${readCount} | Wishlist: 0`,
+        genres: data.genres || '',
+        goals: data.goals || '',
+        verificationStatus: data.verification_status || false,
+        streak: data.streak || 0,
+        badges: data.badges || [],
+        monthlyGoal: data.monthly_goal || 4,
+        monthlyProgress: data.monthly_progress || 0
+      });
+    }
+  };
+
+  const refreshBooks = async () => {
+    const { data, error } = await supabase
+      .from('view_books')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching books:", error);
+      return;
+    }
+    if (data) {
+      const mappedBooks: Book[] = data.map((b: any) => ({
+        id: b.id,
+        title: b.title,
+        author: b.author,
+        genre: b.genre,
+        summary: b.summary || '',
+        rating: Number(b.rating),
+        ownerName: b.ownerName || 'Unknown',
+        ownerDistance: b.owner_distance || '0.5 miles away',
+        ownerRating: Number(b.owner_rating),
+        isOwned: b.isOwned,
+        isRead: b.is_read,
+        isWishlist: b.is_wishlist,
+        isExchangeable: b.is_exchangeable,
+        isLendable: b.is_lendable,
+        coverResId: b.cover_res_id,
+        likesCount: b.likesCount || 0,
+        isLiked: b.isLiked || false
+      }));
+      setBooks(mappedBooks);
+    }
+  };
+
+  const refreshStories = async () => {
+    const { data, error } = await supabase
+      .from('view_stories')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching stories:", error);
+      return;
+    }
+    if (data) {
+      const mappedStories: ReadingStory[] = data.map((s: any) => ({
+        id: s.id,
+        authorName: s.authorName || 'Other Reader',
+        bookTitle: s.book_title,
+        noteText: s.note_text,
+        timestamp: 'Just now',
+        storyType: s.story_type,
+        backgroundTheme: s.background_theme,
+        likesCount: s.likesCount || 0,
+        isLiked: s.isLiked || false,
+        isUserStory: s.isUserStory
+      }));
+      setReadingStories(mappedStories);
+    }
+  };
+
+  const refreshEvents = async () => {
+    const { data, error } = await supabase
+      .from('view_events')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching events:", error);
+      return;
+    }
+    if (data) {
+      const mappedEvents: Event[] = data.map((e: any) => ({
+        id: e.id,
+        title: e.title,
+        category: e.category,
+        date: e.date,
+        time: e.time,
+        location: e.location,
+        organizer: e.organizer,
+        description: e.description,
+        isRsvped: e.isRsvped || false
+      }));
+      setEvents(mappedEvents);
+    }
+  };
+
+  const refreshReaders = async () => {
+    const { data, error } = await supabase
+      .from('view_readers')
+      .select('*');
+
+    if (error) {
+      console.error("Error fetching readers:", error);
+      return;
+    }
+    if (data) {
+      const mappedReaders: Reader[] = data.map((r: any) => ({
+        id: r.id,
+        name: r.name || 'Other Reader',
+        bio: r.bio || '',
+        location: r.location || '',
+        readingScore: r.readingScore || 0,
+        stats: r.stats || 'Owned: 0 | Read: 0',
+        genres: r.genres || '',
+        goals: r.goals || '',
+        verificationBadge: r.verificationBadge || false,
+        matchPercentage: r.matchPercentage || 85
+      }));
+      setReaders(mappedReaders);
+    }
+  };
+
+  const refreshMessages = async () => {
+    const { data, error } = await supabase
+      .from('view_messages')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error("Error fetching messages:", error);
+      return;
+    }
+    if (data) {
+      const mappedMessages: ChatMessage[] = data.map((m: any) => ({
+        id: m.id,
+        chatId: m.chatId || 'Other Reader',
+        sender: m.sender as 'me' | 'other',
+        messageText: m.message_text || '',
+        timestamp: Number(m.timestamp),
+        isExchangeCard: m.is_exchange_card,
+        exchangeBookTitle: m.exchange_book_title || undefined,
+        exchangeStatus: m.exchange_status || undefined
+      }));
+      setMessages(mappedMessages);
+    }
+  };
+
+  const loadAllData = (userId: string) => {
+    refreshProfile(userId);
+    refreshBooks();
+    refreshStories();
+    refreshEvents();
+    refreshReaders();
+    refreshMessages();
+  };
+
+  // Auth State Listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        loadAllData(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadAllData(session.user.id);
+      }
+    });
+
+    // Subscriptions for real-time messages
+    const channel = supabase
+      .channel('public:messages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        refreshMessages();
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) refreshProfile(session.user.id);
+        });
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const navigateTo = (screen: AppScreen) => setCurrentScreen(screen);
@@ -146,52 +343,53 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     backgroundTheme: string = "Cozy Cafe"
   ) => {
     if (!noteText.trim()) return;
-    const authorName = userProfile.name || "Aarav Sharma";
-    const newStory: ReadingStory = {
-      id: Date.now(),
-      authorName,
-      bookTitle: bookTitle || "Literary Reflection",
-      noteText,
-      timestamp: "Just now",
-      storyType,
-      backgroundTheme,
-      likesCount: 1,
-      isLiked: true,
-      isUserStory: true
-    };
-    const updated = [newStory, ...readingStories];
-    setReadingStories(updated);
-    await StorageService.saveStories(updated);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    const updatedProf = { ...userProfile, readingScore: userProfile.readingScore + 15 };
-    setUserProfile(updatedProf);
-    await StorageService.saveProfile(updatedProf);
+    const { error } = await supabase.from('reading_stories').insert({
+      profile_id: user.id,
+      book_title: bookTitle || "Literary Reflection",
+      note_text: noteText,
+      story_type: storyType,
+      background_theme: backgroundTheme
+    });
+
+    if (error) {
+      console.error("Error adding story:", error);
+      return;
+    }
+
+    refreshStories();
+    refreshProfile(user.id);
   };
 
   const toggleLikeStory = async (storyId: number) => {
-    const updated = readingStories.map(s => {
-      if (s.id === storyId) {
-        const isLiked = !s.isLiked;
-        const likesCount = isLiked ? s.likesCount + 1 : Math.max(0, s.likesCount - 1);
-        return { ...s, isLiked, likesCount };
-      }
-      return s;
-    });
-    setReadingStories(updated);
-    await StorageService.saveStories(updated);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const story = readingStories.find(s => s.id === storyId);
+    if (!story) return;
+
+    if (story.isLiked) {
+      await supabase.from('story_likes').delete().eq('story_id', storyId).eq('profile_id', user.id);
+    } else {
+      await supabase.from('story_likes').insert({ story_id: storyId, profile_id: user.id });
+    }
+
+    refreshStories();
   };
 
   const toggleLikeBook = async (book: Book) => {
-    const updatedBooks = books.map(b => {
-      if (b.id === book.id) {
-        const isLiked = !b.isLiked;
-        const likesCount = isLiked ? b.likesCount + 1 : Math.max(0, b.likesCount - 1);
-        return { ...b, isLiked, likesCount };
-      }
-      return b;
-    });
-    setBooks(updatedBooks);
-    await StorageService.saveBooks(updatedBooks);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (book.isLiked) {
+      await supabase.from('book_likes').delete().eq('book_id', book.id).eq('profile_id', user.id);
+    } else {
+      await supabase.from('book_likes').insert({ book_id: book.id, profile_id: user.id });
+    }
+
+    refreshBooks();
 
     if (selectedBook?.id === book.id) {
       setSelectedBook(prev => prev ? { ...prev, isLiked: !prev.isLiked, likesCount: !prev.isLiked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1) } : null);
@@ -199,48 +397,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const addNewBook = async (title: string, author: string, genre: string, summary: string, classification: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const isOwned = classification === "Owned" || classification === "Available Exchange" || classification === "Available Lending";
     const isRead = classification === "Read";
     const isWishlist = classification === "Wishlist";
     const isExchangeable = classification === "Available Exchange";
     const isLendable = classification === "Available Lending";
 
-    const newBook: Book = {
-      id: Date.now(),
+    const { error } = await supabase.from('books').insert({
+      owner_id: user.id,
       title,
       author,
       genre,
       summary,
       rating: 4.5,
-      ownerName: "Me",
-      ownerDistance: "0.0 miles away",
-      ownerRating: 5.0,
-      isOwned,
-      isRead,
-      isWishlist,
-      isExchangeable,
-      isLendable,
-      coverResId: Math.floor(Math.random() * 5) + 1,
-      likesCount: 0,
-      isLiked: false
-    };
+      is_read: isRead,
+      is_wishlist: isWishlist,
+      is_exchangeable: isExchangeable,
+      is_lendable: isLendable,
+      cover_res_id: Math.floor(Math.random() * 5) + 1,
+      owner_distance: '0.0 miles away',
+      owner_rating: 5.0
+    });
 
-    const updated = [newBook, ...books];
-    setBooks(updated);
-    await StorageService.saveBooks(updated);
+    if (error) {
+      console.error("Error adding book:", error);
+      return;
+    }
 
-    const updatedProf = {
-      ...userProfile,
-      readingScore: userProfile.readingScore + 10,
-    };
-    setUserProfile(updatedProf);
-    await StorageService.saveProfile(updatedProf);
+    refreshBooks();
+    refreshProfile(user.id);
   };
 
   const toggleEventRsvp = async (event: Event) => {
-    const updatedEvents = events.map(e => e.id === event.id ? { ...e, isRsvped: !e.isRsvped } : e);
-    setEvents(updatedEvents);
-    await StorageService.saveEvents(updatedEvents);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (event.isRsvped) {
+      await supabase.from('event_rsvps').delete().eq('event_id', event.id).eq('profile_id', user.id);
+    } else {
+      await supabase.from('event_rsvps').insert({ event_id: event.id, profile_id: user.id });
+    }
+
+    refreshEvents();
   };
 
   const getMessagesForChat = (chatId: string) => {
@@ -267,20 +468,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   ) => {
     if (!text.trim() && !isExchangeCard) return;
 
-    const newMsg: ChatMessage = {
-      id: Date.now(),
-      chatId,
-      sender: 'me',
-      messageText: text,
-      timestamp: Date.now(),
-      isExchangeCard,
-      exchangeBookTitle: exchangeBook,
-      exchangeStatus
-    };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    const updated = [...messages, newMsg];
-    setMessages(updated);
-    await StorageService.saveMessages(updated);
+    // Fetch other user profile ID from their name
+    const { data: otherProfile, error: profErr } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('name', chatId)
+      .limit(1)
+      .maybeSingle();
+
+    if (profErr || !otherProfile) {
+      console.error("Could not find recipient profile named:", chatId);
+      return;
+    }
+
+    // Find or create conversation between these two users
+    let { data: conv } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`and(user1_id.eq.${user.id},user2_id.eq.${otherProfile.id}),and(user1_id.eq.${otherProfile.id},user2_id.eq.${user.id})`)
+      .maybeSingle();
+
+    if (!conv) {
+      const { data: newConv, error: convErr } = await supabase
+        .from('conversations')
+        .insert({
+          user1_id: user.id,
+          user2_id: otherProfile.id
+        })
+        .select('id')
+        .single();
+
+      if (convErr) {
+        console.error("Error creating conversation:", convErr);
+        return;
+      }
+      conv = newConv;
+    }
+
+    // Insert new message
+    const { error: msgErr } = await supabase.from('messages').insert({
+      conversation_id: conv.id,
+      sender_id: user.id,
+      message_text: text,
+      is_exchange_card: isExchangeCard,
+      exchange_book_title: exchangeBook || null,
+      exchange_status: exchangeStatus || null
+    });
+
+    if (msgErr) {
+      console.error("Error sending message:", msgErr);
+    }
   };
 
   const createExchangeRequest = (book: Book) => {
@@ -295,44 +535,60 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateExchangeStatus = async (message: ChatMessage, newStatus: string) => {
-    const updatedMessages = messages.map(m => m.id === message.id ? { ...m, exchangeStatus: newStatus } : m);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    let replyText = "";
-    switch (newStatus) {
-      case "Accepted":
-        replyText = "Sounds great! I'm happy to swap books. Feel free to message me your address or a local coffee shop to meet up when you're comfortable.";
-        break;
-      case "Declined":
-        replyText = "Thanks for reaching out! Let's chat more about other books in our collections.";
-        break;
-      case "Completed":
-        replyText = "Book swap completed successfully! Hope you enjoy the read! Added +20 to your Reading Score.";
-        break;
-      default:
-        replyText = `Swap agreement updated to: ${newStatus}`;
+    const { error } = await supabase
+      .from('messages')
+      .update({ exchange_status: newStatus })
+      .eq('id', message.id);
+
+    if (error) {
+      console.error("Error updating exchange status:", error);
+      return;
     }
 
-    const replyMsg: ChatMessage = {
-      id: Date.now() + 1,
-      chatId: message.chatId,
-      sender: "other",
-      messageText: replyText,
-      timestamp: Date.now() + 1
-    };
+    // For demo/testing convenience, auto-reply from the other participant
+    const { data: dbMsg } = await supabase
+      .from('messages')
+      .select('conversation_id, sender_id')
+      .eq('id', message.id)
+      .single();
 
-    const finalMessages = [...updatedMessages, replyMsg];
-    setMessages(finalMessages);
-    await StorageService.saveMessages(finalMessages);
+    if (dbMsg) {
+      const { data: conv } = await supabase
+        .from('conversations')
+        .select('user1_id, user2_id')
+        .eq('id', dbMsg.conversation_id)
+        .single();
 
-    if (newStatus === "Completed") {
-      const updatedProf = {
-        ...userProfile,
-        readingScore: userProfile.readingScore + 20,
-        monthlyProgress: Math.min(userProfile.monthlyGoal, userProfile.monthlyProgress + 1)
-      };
-      setUserProfile(updatedProf);
-      await StorageService.saveProfile(updatedProf);
+      if (conv) {
+        const otherId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
+        let replyText = "";
+        switch (newStatus) {
+          case "Accepted":
+            replyText = "Sounds great! I'm happy to swap books. Feel free to message me your address or a local coffee shop to meet up when you're comfortable.";
+            break;
+          case "Declined":
+            replyText = "Thanks for reaching out! Let's chat more about other books in our collections.";
+            break;
+          case "Completed":
+            replyText = "Book swap completed successfully! Hope you enjoy the read! Added +20 to your Reading Score.";
+            break;
+          default:
+            replyText = `Swap agreement updated to: ${newStatus}`;
+        }
+
+        await supabase.from('messages').insert({
+          conversation_id: dbMsg.conversation_id,
+          sender_id: otherId,
+          message_text: replyText
+        });
+      }
     }
+
+    refreshMessages();
+    refreshProfile(user.id);
   };
 
   const startBookChat = (readerName: string, bookTitle: string) => {
@@ -351,16 +607,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     genres: string,
     goals: string
   ) => {
-    const updatedProf: UserProfile = {
-      ...userProfile,
-      name: name.trim() || userProfile.name,
-      bio: bio.trim() || userProfile.bio,
-      location: location.trim() || userProfile.location,
-      genres: genres.trim() || userProfile.genres,
-      goals: goals.trim() || userProfile.goals,
-    };
-    setUserProfile(updatedProf);
-    await StorageService.saveProfile(updatedProf);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name: name.trim(),
+        bio: bio.trim(),
+        location: location.trim(),
+        genres: genres.trim(),
+        goals: goals.trim()
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error("Error updating profile:", error);
+      return;
+    }
+
+    refreshProfile(user.id);
   };
 
   return (
@@ -407,7 +673,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         createExchangeRequest,
         updateExchangeStatus,
         startBookChat,
-        updateUserProfile,
+        updateUserProfile
       }}
     >
       {children}

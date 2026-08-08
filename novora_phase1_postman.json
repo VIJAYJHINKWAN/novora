@@ -1,0 +1,218 @@
+{
+	"info": {
+		"_postman_id": "a1f9a2fb-efeb-4fb8-bb0e-110f279dcd29",
+		"name": "Novora Phase 1 APIs",
+		"description": "Postman collection for Novora Phase 1 - Authentication and User Profiles (Supabase BaaS integration).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Signup User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.environment.set(\"USER_TOKEN\", jsonData.access_token);",
+									"}",
+									"if (jsonData.user && jsonData.user.id) {",
+									"    pm.environment.set(\"USER_ID\", jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"reader@example.com\",\n  \"password\": \"password123\",\n  \"options\": {\n    \"data\": {\n      \"name\": \"Aarav Sharma\"\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/auth/v1/signup",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"v1",
+								"signup"
+							]
+						},
+						"description": "Registers a new user on Supabase Auth. Also automatically runs a trigger in the database to create a public profile in the profiles table."
+					},
+					"response": []
+				},
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.access_token) {",
+									"    pm.environment.set(\"USER_TOKEN\", jsonData.access_token);",
+									"}",
+									"if (jsonData.user && jsonData.user.id) {",
+									"    pm.environment.set(\"USER_ID\", jsonData.user.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"reader@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/auth/v1/token?grant_type=password",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"auth",
+								"v1",
+								"token"
+							],
+							"query": [
+								{
+									"key": "grant_type",
+									"value": "password"
+								}
+							]
+						},
+						"description": "Signs in an existing user with email and password and returns access_token and user info."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Profiles",
+			"item": [
+				{
+					"name": "Get Current User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/profiles?id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"profiles"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Fetches the public profile associated with the authenticated user ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Prefer",
+								"value": "return=representation",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bio\": \"Updated bio from Postman!\",\n  \"location\": \"Indiranagar, Bengaluru\",\n  \"genres\": \"Indian Lit, Modern Fiction, Essays, Poetry\",\n  \"goals\": \"Read 36 books in 2026\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/profiles?id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"profiles"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Updates the public profile metadata of the current authenticated user."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

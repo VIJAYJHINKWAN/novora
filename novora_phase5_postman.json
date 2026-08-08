@@ -1,0 +1,296 @@
+{
+	"info": {
+		"_postman_id": "a57e3f89-8d7d-411a-8e2b-fdbd5918731d",
+		"name": "Novora Phase 5 APIs",
+		"description": "Postman collection for Novora Phase 5 - Security (RLS) & Settings (Gamification and Profiles).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Profile & Settings",
+			"item": [
+				{
+					"name": "Update Profile Settings",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Prefer",
+								"value": "return=representation",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Name\",\n  \"bio\": \"Avid fiction reader and community organizer.\",\n  \"location\": \"New York, NY\",\n  \"genres\": \"Sci-Fi, Fantasy, Mystery\",\n  \"goals\": \"Read 24 books this year\",\n  \"monthly_goal\": 6\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/profiles?id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"profiles"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Updates the current authenticated user's profile metadata and monthly goal."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile Settings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/profiles?id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"profiles"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Fetches the current user's profile to verify scores, progress, and badges."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Gamification Triggers",
+			"item": [
+				{
+					"name": "1. Test Gamification - Add Book (+10 pts)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"owner_id\": \"{{USER_ID}}\",\n  \"title\": \"Dune\",\n  \"author\": \"Frank Herbert\",\n  \"genre\": \"Sci-Fi\",\n  \"summary\": \"Epic sci-fi classic\",\n  \"rating\": 4.8,\n  \"is_read\": false,\n  \"is_wishlist\": false,\n  \"is_exchangeable\": true,\n  \"is_lendable\": true\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/books",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"books"
+							]
+						},
+						"description": "Inserts a new book into the books table. This trigger automatically increments the owner's reading_score by +10."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Test Gamification - Add Story (+15 pts)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profile_id\": \"{{USER_ID}}\",\n  \"book_title\": \"Dune\",\n  \"note_text\": \"Halfway through! The world building is spectacular.\",\n  \"story_type\": \"Current Read\",\n  \"background_theme\": \"Desert Sunset\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/reading_stories",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"reading_stories"
+							]
+						},
+						"description": "Publishes a reading story. This trigger automatically increments the author's reading_score by +15."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Test Gamification - Complete Swap (+20 pts & +1 Progress)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Prefer",
+								"value": "return=representation",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"exchange_status\": \"Completed\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/messages?id=eq.1&is_exchange_card=eq.true",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"messages"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "eq.1",
+									"description": "Replace with a valid exchange card message ID"
+								},
+								{
+									"key": "is_exchange_card",
+									"value": "eq.true"
+								}
+							]
+						},
+						"description": "Updates an exchange message card's status to 'Completed'. This trigger automatically awards +20 pts to both conversation users and increments their monthly progress."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Security Boundaries (RLS Test)",
+			"item": [
+				{
+					"name": "Violate Profile Security (Expect Failure)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Hacked Profile\",\n  \"reading_score\": 9999\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/profiles?id=eq.some-other-user-uuid",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"profiles"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "eq.some-other-user-uuid",
+									"description": "UUID of another user's profile"
+								}
+							]
+						},
+						"description": "Tries to modify another user's profile. This must fail (either no rows updated or 401/403/404 depending on configuration) due to Row Level Security rules."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

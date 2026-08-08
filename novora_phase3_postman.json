@@ -1,0 +1,246 @@
+{
+	"info": {
+		"_postman_id": "c3f9a2fb-efeb-4fb8-bb0e-330f279dcd31",
+		"name": "Novora Phase 3 APIs",
+		"description": "Postman collection for Novora Phase 3 - Search & Recommendations (Supabase BaaS integration).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Events",
+			"item": [
+				{
+					"name": "Add Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Evening Poetry Reading & Chai\",\n  \"category\": \"Poetry Circles\",\n  \"date\": \"Aug 15, 2026\",\n  \"time\": \"6:30 PM\",\n  \"location\": \"Chai Point, Indiranagar, Bengaluru\",\n  \"organizer\": \"Aarav Sharma\",\n  \"description\": \"Join us for an open mic poetry session and hot chai. Bring your own poem!\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/events",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"events"
+							]
+						},
+						"description": "Adds a new literary event. Restricted to authenticated users."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Events Feed (All)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_events",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_events"
+							]
+						},
+						"description": "Gets all events, indicating if the current user has RSVP'd."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Events Feed (Search and Filter)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_events?category=eq.Poetry Circles&title=ilike.*poetry*",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_events"
+							],
+							"query": [
+								{
+									"key": "category",
+									"value": "eq.Poetry Circles",
+									"description": "Filter by Category"
+								},
+								{
+									"key": "title",
+									"value": "ilike.*poetry*",
+									"description": "Case-insensitive title search"
+								}
+							]
+						},
+						"description": "Filters events by category and title query string. Matches the search bar in discover.tsx."
+					},
+					"response": []
+				},
+				{
+					"name": "RSVP to Event",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_id\": 1,\n  \"profile_id\": \"{{USER_ID}}\"\n}"
+						},
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/event_rsvps",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"event_rsvps"
+							]
+						},
+						"description": "RSVPs to an event for the current user. Replace event_id with a valid event ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel RSVP",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/event_rsvps?event_id=eq.1&profile_id=eq.{{USER_ID}}",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"event_rsvps"
+							],
+							"query": [
+								{
+									"key": "event_id",
+									"value": "eq.1"
+								},
+								{
+									"key": "profile_id",
+									"value": "eq.{{USER_ID}}"
+								}
+							]
+						},
+						"description": "Cancels user RSVP for a specific event."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Readers",
+			"item": [
+				{
+					"name": "Get Nearby Readers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "apikey",
+								"value": "{{SUPABASE_ANON_KEY}}",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{USER_TOKEN}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{SUPABASE_URL}}/rest/v1/view_readers",
+							"host": [
+								"{{SUPABASE_URL}}"
+							],
+							"path": [
+								"rest",
+								"v1",
+								"view_readers"
+							]
+						},
+						"description": "Gets other readers nearby, calculating mutual match percentage dynamically."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
