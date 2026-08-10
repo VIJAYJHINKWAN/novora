@@ -19,7 +19,7 @@ export default function SplashScreen() {
         {/* Novora Brand App Icon */}
         <View style={styles.logoBadge}>
           <Image
-            source={require('../assets/icon.png')}
+            source={require('../../assets/icon.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
