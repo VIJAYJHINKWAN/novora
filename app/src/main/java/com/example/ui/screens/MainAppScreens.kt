@@ -252,19 +252,19 @@ fun HomeScreenView(viewModel: PageTurnViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Row(
+                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.novora_app_icon_1785415221955),
-                            contentDescription = "Novora Logo",
+                            painter = painterResource(id = R.drawable.litverse_app_icon_1785415221955),
+                            contentDescription = "Litverse Logo",
                             modifier = Modifier
                                 .size(28.dp)
                                 .clip(RoundedCornerShape(6.dp))
                         )
                         Text(
-                            text = "NOVORA",
+                            text = "LITVERSE",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = PageTurnPrimaryAccent,
                                 fontWeight = FontWeight.Bold,

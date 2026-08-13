@@ -1,4 +1,4 @@
-package com.anonymous.novora
+package com.anonymous.litverse
 
 import android.os.Build
 import android.os.Bundle

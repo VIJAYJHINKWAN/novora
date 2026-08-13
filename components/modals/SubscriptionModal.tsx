@@ -23,7 +23,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ onDismiss 
     setSubscribed(true);
     setTimeout(() => {
       Alert.alert(
-        '🎉 Welcome to Novora VIP Pass!',
+        '🎉 Welcome to Litverse VIP Pass!',
         'Your subscription for ₹59/month is active. Enjoy unlimited chats, event registrations, and RSVP access!',
         [{ text: 'Great!', onPress: onDismiss }]
       );
@@ -60,7 +60,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ onDismiss 
           <View style={styles.header}>
             <View style={styles.badgeRow}>
               <Ionicons name="sparkles" size={16} color="#FFD700" />
-              <Text style={styles.badgeText}>NOVORA VIP PASS</Text>
+              <Text style={styles.badgeText}>LITVERSE VIP PASS</Text>
             </View>
 
             <TouchableOpacity style={styles.closeBtn} onPress={onDismiss}>

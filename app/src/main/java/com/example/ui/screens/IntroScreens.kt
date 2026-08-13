@@ -53,10 +53,10 @@ fun SplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Novora Brand Logo Image
+                // Litverse Brand Logo Image
                 Image(
-                    painter = painterResource(id = R.drawable.novora_app_icon_1785415221955),
-                    contentDescription = "Novora Logo",
+                    painter = painterResource(id = R.drawable.litverse_app_icon_1785415221955),
+                    contentDescription = "Litverse Logo",
                     modifier = Modifier
                         .size(110.dp)
                         .clip(RoundedCornerShape(24.dp))
@@ -67,7 +67,7 @@ fun SplashScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Novora",
+                    text = "Litverse",
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontFamily = FontFamily.Serif,
                         fontWeight = FontWeight.Bold,
@@ -287,15 +287,15 @@ fun LoginSignupScreen(
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = painterResource(id = R.drawable.novora_app_icon_1785415221955),
-                        contentDescription = "Novora Logo",
+                        painter = painterResource(id = R.drawable.litverse_app_icon_1785415221955),
+                        contentDescription = "Litverse Logo",
                         modifier = Modifier
                             .size(38.dp)
                             .clip(RoundedCornerShape(8.dp))
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Novora",
+                        text = "Litverse",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontFamily = FontFamily.Serif,
                             fontWeight = FontWeight.Bold,

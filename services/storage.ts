@@ -2,12 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Book, Reader, Event, ChatMessage, ReadingStory, UserProfile } from '../types';
 
 const KEYS = {
-  BOOKS: 'novora_books_v1',
-  READERS: 'novora_readers_v1',
-  EVENTS: 'novora_events_v1',
-  MESSAGES: 'novora_messages_v1',
-  STORIES: 'novora_stories_v1',
-  PROFILE: 'novora_profile_v1',
+  BOOKS: 'litverse_books_v1',
+  READERS: 'litverse_readers_v1',
+  EVENTS: 'litverse_events_v1',
+  MESSAGES: 'litverse_messages_v1',
+  STORIES: 'litverse_stories_v1',
+  PROFILE: 'litverse_profile_v1',
 };
 
 // Initial Seed Data matching AppDatabase.kt exactly

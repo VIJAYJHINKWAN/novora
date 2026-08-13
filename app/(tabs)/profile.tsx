@@ -80,7 +80,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.subMeta}>
               <View style={styles.subBadgeRow}>
-                <Text style={styles.subBadgeTitle}>Novora VIP Pass</Text>
+                <Text style={styles.subBadgeTitle}>Litverse VIP Pass</Text>
                 <View style={styles.subBadgePill}>
                   <Text style={styles.subBadgePillText}>₹59/mo</Text>
                 </View>

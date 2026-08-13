@@ -16,7 +16,7 @@ export default function SplashScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.centerContent}>
-        {/* Novora Brand App Icon */}
+        {/* Litverse Brand App Icon */}
         <View style={styles.logoBadge}>
           <Image
             source={require('../assets/icon.png')}
@@ -25,7 +25,7 @@ export default function SplashScreen() {
           />
         </View>
 
-        <Text style={styles.title}>Novora</Text>
+        <Text style={styles.title}>Litverse</Text>
         <Text style={styles.tagline}>Discover stories. Connect with readers</Text>
 
         <ActivityIndicator color={Colors.primaryAccent} size="small" style={{ marginTop: 48 }} />

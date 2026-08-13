@@ -70,7 +70,7 @@ export default function HomeScreen() {
       {/* Top Header Bar */}
       <View style={styles.headerBar}>
         <View style={styles.brandRow}>
-          <Text style={styles.brandTitle}>Novora</Text>
+          <Text style={styles.brandTitle}>Litverse</Text>
         </View>
 
         <TouchableOpacity style={styles.notifBtn} onPress={() => setNotificationVisible(true)}>

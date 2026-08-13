@@ -50,7 +50,7 @@ export default function LoginScreen() {
               />
             </View>
 
-            <Text style={styles.heroTitle}>Welcome to Novora</Text>
+            <Text style={styles.heroTitle}>Welcome to Litverse</Text>
             <Text style={styles.heroSubtitle}>
               Sign in to join regional book exchanges and literary salons.
             </Text>

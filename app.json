@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Novora",
-    "slug": "novora",
+    "name": "Litverse",
+    "slug": "litverse",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "novora",
+    "scheme": "litverse",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
@@ -20,7 +20,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#C18C5D"
       },
-      "package": "com.anonymous.novora",
+      "package": "com.anonymous.litverse",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyA_FreeDefaultMapKeyForDevelopment"
