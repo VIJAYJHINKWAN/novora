@@ -32,6 +32,21 @@ This project uses `react-native-maps`, which is a custom native module **not sup
 
 **Option A — Local development build (requires Android Studio / SDK set up, and a connected device or emulator):**
 
+Connect your phone via USB:
+
+1. On your phone, go to **Settings > About phone** and tap **Build number** 7 times to enable Developer Options.
+2. Go to **Settings > Developer options** and enable **USB debugging**.
+3. Connect the phone to your PC with a USB cable. On the phone, tap **Allow** on the "Allow USB debugging" popup.
+4. Verify the device is detected:
+
+```bash
+adb devices
+```
+
+You should see your device listed with `device` status (not `unauthorized`).
+
+Then build and install the app:
+
 ```bash
 npx expo run:android
 ```
