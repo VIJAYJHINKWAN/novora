@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Colors, Fonts } from '../../constants/theme';
 import { useApp } from '../../context/AppContext';
 import { UserAvatar } from '../../components/UserAvatar';
@@ -23,6 +24,7 @@ import { AddBookModal } from '../../components/modals/AddBookModal';
 import { NearbyMapOverlay } from '../../components/NearbyMapOverlay';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const {
     books,
     readers,
@@ -46,6 +48,7 @@ export default function HomeScreen() {
     addStory,
     toggleLikeStory,
     addNewBook,
+    startBookChat,
   } = useApp();
 
   const [showAddBook, setShowAddBook] = useState(false);
@@ -240,7 +243,8 @@ export default function HomeScreen() {
           reader={selectedReader}
           onDismiss={() => selectReader(null)}
           onChatClick={() => {
-            selectReader(null);
+            startBookChat(selectedReader.name, 'your collection');
+            router.push('/(tabs)/messages');
           }}
         />
       )}
