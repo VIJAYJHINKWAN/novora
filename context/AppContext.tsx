@@ -1,15 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Book, Reader, Event, ChatMessage, ReadingStory, UserProfile, NavigationTab, AppScreen } from '../types';
-import { StorageService } from '../services/storage';
+import { ApiService } from '../services/api';
 
 interface AppContextType {
-  // Navigation & Screen States
   currentScreen: AppScreen;
   navigateTo: (screen: AppScreen) => void;
   selectedTab: NavigationTab;
   selectTab: (tab: NavigationTab) => void;
 
-  // Selected Entities for Sheets/Modals
   selectedBook: Book | null;
   selectBook: (book: Book | null) => void;
   selectedReader: Reader | null;
@@ -17,12 +15,10 @@ interface AppContextType {
   selectedChatId: string | null;
   selectChat: (chatId: string | null) => void;
 
-  // Notifications State
   notificationCount: number;
   showNotifications: boolean;
   setNotificationVisible: (show: boolean) => void;
 
-  // Search & Filter
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedGenreFilter: string;
@@ -30,7 +26,6 @@ interface AppContextType {
   selectedEventCategory: string;
   setEventCategory: (category: string) => void;
 
-  // Data Collections
   books: Book[];
   readers: Reader[];
   events: Event[];
@@ -38,7 +33,6 @@ interface AppContextType {
   readingStories: ReadingStory[];
   userProfile: UserProfile;
 
-  // Story Viewer / Modal State
   activeStoryIndex: number | null;
   openStoryViewer: (index: number) => void;
   closeStoryViewer: () => void;
@@ -47,14 +41,20 @@ interface AppContextType {
   addStory: (bookTitle: string, noteText: string, storyType?: string, backgroundTheme?: string) => void;
   toggleLikeStory: (storyId: number) => void;
 
-  // Book Actions
   toggleLikeBook: (book: Book) => void;
   addNewBook: (title: string, author: string, genre: string, summary: string, classification: string) => void;
 
-  // Event Actions
   toggleEventRsvp: (event: Event) => void;
+    addNewEvent: (
+    title: string,
+    category: string,
+    date: string,
+    time: string,
+    location: string,
+    organizerName: string,
+    description: string
+  ) => void;
 
-  // Messaging & Exchange Actions
   getMessagesForChat: (chatId: string) => ChatMessage[];
   getRecentChats: () => { chatId: string; lastMessage: ChatMessage }[];
   sendChatMessage: (chatId: string, text: string, isExchangeCard?: boolean, exchangeBook?: string, exchangeStatus?: string) => void;
@@ -62,7 +62,6 @@ interface AppContextType {
   updateExchangeStatus: (message: ChatMessage, newStatus: string) => void;
   startBookChat: (readerName: string, bookTitle: string) => void;
 
-  // User Profile
   updateUserProfile: (name: string, bio: string, location: string, genres: string, goals: string) => void;
 }
 
@@ -89,39 +88,85 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [readingStories, setReadingStories] = useState<ReadingStory[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    name: "Aarav Sharma",
-    bio: "Bibliophile & software architect based in Indiranagar, Bengaluru.",
-    location: "Indiranagar, Bengaluru",
-    readingScore: 880,
-    stats: "Owned: 24 | Read: 42 | Wishlist: 15",
-    genres: "Indian Lit, Modern Fiction, Essays, Poetry",
-    goals: "Read 36 books in 2026",
-    verificationStatus: true,
-    streak: 14,
-    badges: ["Indie Curator", "Chai & Verse", "Local Envoy"],
-    monthlyGoal: 4,
-    monthlyProgress: 3
+    name: "", bio: "", location: "", readingScore: 0, stats: "", genres: "", goals: "",
+    verificationStatus: false, streak: 0, badges: [], monthlyGoal: 0, monthlyProgress: 0,
   });
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [showCreateStoryDialog, setShowCreateStoryDialog] = useState<boolean>(false);
 
-  // Load initial data
+  const mapBook = (book: any): Book => ({
+    id: book.id, title: book.title, author: book.author, genre: book.genre || '',
+    summary: book.summary || '', rating: Number(book.rating) || 0,
+    ownerName: book.ownerName || '', ownerDistance: book.ownerDistance || '',
+    ownerRating: Number(book.ownerRating) || 0, isOwned: !!book.isOwned, isRead: !!book.isRead,
+    isWishlist: !!book.isWishlist, isExchangeable: !!book.isExchangeable, isLendable: !!book.isLendable,
+    coverResId: (book.id % 5) + 1, likesCount: book.likesCount || 0, isLiked: !!book.isLiked,
+  });
+
+  const mapReader = (reader: any): Reader => ({
+    id: reader.id, name: reader.name, bio: reader.bio || '', location: reader.location || '',
+    readingScore: reader.readingScore || 0, stats: `Reading Score: ${reader.readingScore || 0}`,
+    genres: reader.genres || '', goals: reader.goals || '', verificationBadge: !!reader.verificationBadge,
+    matchPercentage: 80 + ((reader.id * 7) % 20),
+  });
+
+  const mapEvent = (e: any): Event => ({
+    id: e.id, title: e.title, category: e.category, date: e.date, time: e.time,
+    location: e.location, organizer: e.organizerName, description: e.description || '',
+    isRsvped: !!e.isRsvped,
+  });
+
+  const mapStory = (s: any): ReadingStory => ({
+    id: s.id, authorName: s.authorName, bookTitle: s.bookTitle, noteText: s.noteText,
+    timestamp: new Date(s.createdAt || Date.now()).toLocaleString(), storyType: s.storyType,
+    backgroundTheme: s.backgroundTheme, likesCount: s.likesCount || 0, isLiked: !!s.isLiked,
+  });
+
   useEffect(() => {
     (async () => {
-      const b = await StorageService.getBooks();
-      const r = await StorageService.getReaders();
-      const e = await StorageService.getEvents();
-      const m = await StorageService.getMessages();
-      const s = await StorageService.getStories();
-      const p = await StorageService.getProfile();
+      try {
+        const profileRes = await ApiService.getProfile();
+        setCurrentUserId(profileRes.data.id);
+        setUserProfile({
+          name: profileRes.data.name, bio: profileRes.data.bio || '',
+          location: profileRes.data.location || '', readingScore: profileRes.data.readingScore || 0,
+          stats: `Reading Score: ${profileRes.data.readingScore || 0}`,
+          genres: profileRes.data.genres || '', goals: profileRes.data.goals || '',
+          verificationStatus: !!profileRes.data.verificationStatus, streak: profileRes.data.streak || 0,
+          badges: profileRes.data.badges || [], monthlyGoal: profileRes.data.monthlyGoal || 0,
+          monthlyProgress: profileRes.data.monthlyProgress || 0,
+        });
+        const myId = profileRes.data.id;
 
-      setBooks(b);
-      setReaders(r);
-      setEvents(e);
-      setMessages(m);
-      setReadingStories(s);
-      setUserProfile(p);
+        const booksRes = await ApiService.getBooks();
+        setBooks(booksRes.data.map(mapBook));
+
+        const readersRes = await ApiService.getReaders();
+        setReaders(readersRes.data.map(mapReader));
+
+        const eventsRes = await ApiService.getEvents();
+        setEvents(eventsRes.data.map(mapEvent));
+
+        const storiesRes = await ApiService.getStories();
+        setReadingStories(storiesRes.data.map(mapStory));
+
+        try {
+          const convRes = await ApiService.getRecentConversations();
+          const mappedMsgs: ChatMessage[] = convRes.data.map((c: any) => ({
+            id: c.id,
+            chatId: c.otherUserName,
+            sender: c.senderId === myId ? 'me' : 'other',
+            messageText: c.text,
+            timestamp: new Date(c.createdAt).getTime(),
+            isExchangeCard: c.isExchangeCard,
+            exchangeBookTitle: c.exchangeBookTitle,
+            exchangeStatus: c.exchangeStatus,
+          }));
+          setMessages(mappedMsgs);
+        } catch (e) {}
+      } catch (e) {}
     })();
   }, []);
 
@@ -140,107 +185,72 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const closeStoryViewer = () => setActiveStoryIndex(null);
 
   const addStory = async (
-    bookTitle: string,
-    noteText: string,
-    storyType: string = "Current Read",
-    backgroundTheme: string = "Cozy Cafe"
+    bookTitle: string, noteText: string,
+    storyType: string = "Current Read", backgroundTheme: string = "Cozy Cafe"
   ) => {
     if (!noteText.trim()) return;
-    const authorName = userProfile.name || "Aarav Sharma";
-    const newStory: ReadingStory = {
-      id: Date.now(),
-      authorName,
-      bookTitle: bookTitle || "Literary Reflection",
-      noteText,
-      timestamp: "Just now",
-      storyType,
-      backgroundTheme,
-      likesCount: 1,
-      isLiked: true,
-      isUserStory: true
-    };
-    const updated = [newStory, ...readingStories];
-    setReadingStories(updated);
-    await StorageService.saveStories(updated);
-
-    const updatedProf = { ...userProfile, readingScore: userProfile.readingScore + 15 };
-    setUserProfile(updatedProf);
-    await StorageService.saveProfile(updatedProf);
+    await ApiService.addStory(bookTitle || "Literary Reflection", noteText, storyType, backgroundTheme);
+    const storiesRes = await ApiService.getStories();
+    setReadingStories(storiesRes.data.map(mapStory));
+    const profileRes = await ApiService.getProfile();
+    setUserProfile(prev => ({ ...prev, readingScore: profileRes.data.readingScore || 0, stats: `Reading Score: ${profileRes.data.readingScore || 0}` }));
   };
 
   const toggleLikeStory = async (storyId: number) => {
-    const updated = readingStories.map(s => {
-      if (s.id === storyId) {
-        const isLiked = !s.isLiked;
-        const likesCount = isLiked ? s.likesCount + 1 : Math.max(0, s.likesCount - 1);
-        return { ...s, isLiked, likesCount };
-      }
-      return s;
-    });
-    setReadingStories(updated);
-    await StorageService.saveStories(updated);
+    const res = await ApiService.toggleLikeStory(storyId);
+    setReadingStories(prev => prev.map(s => {
+      if (s.id !== storyId) return s;
+      const isLiked = res.isLiked;
+      const likesCount = isLiked ? s.likesCount + 1 : Math.max(0, s.likesCount - 1);
+      return { ...s, isLiked, likesCount };
+    }));
   };
 
   const toggleLikeBook = async (book: Book) => {
-    const updatedBooks = books.map(b => {
-      if (b.id === book.id) {
-        const isLiked = !b.isLiked;
-        const likesCount = isLiked ? b.likesCount + 1 : Math.max(0, b.likesCount - 1);
-        return { ...b, isLiked, likesCount };
-      }
-      return b;
-    });
-    setBooks(updatedBooks);
-    await StorageService.saveBooks(updatedBooks);
-
+    const res = await ApiService.toggleLikeBook(book.id);
+    setBooks(prev => prev.map(b => {
+      if (b.id !== book.id) return b;
+      const isLiked = res.isLiked;
+      const likesCount = isLiked ? b.likesCount + 1 : Math.max(0, b.likesCount - 1);
+      return { ...b, isLiked, likesCount };
+    }));
     if (selectedBook?.id === book.id) {
-      setSelectedBook(prev => prev ? { ...prev, isLiked: !prev.isLiked, likesCount: !prev.isLiked ? prev.likesCount + 1 : Math.max(0, prev.likesCount - 1) } : null);
+      setSelectedBook(prev => prev ? { ...prev, isLiked: res.isLiked } : null);
     }
   };
 
   const addNewBook = async (title: string, author: string, genre: string, summary: string, classification: string) => {
-    const isOwned = classification === "Owned" || classification === "Available Exchange" || classification === "Available Lending";
-    const isRead = classification === "Read";
-    const isWishlist = classification === "Wishlist";
     const isExchangeable = classification === "Available Exchange";
     const isLendable = classification === "Available Lending";
-
-    const newBook: Book = {
-      id: Date.now(),
-      title,
-      author,
-      genre,
-      summary,
-      rating: 4.5,
-      ownerName: "Me",
-      ownerDistance: "0.0 miles away",
-      ownerRating: 5.0,
-      isOwned,
-      isRead,
-      isWishlist,
-      isExchangeable,
-      isLendable,
-      coverResId: Math.floor(Math.random() * 5) + 1,
-      likesCount: 0,
-      isLiked: false
-    };
-
-    const updated = [newBook, ...books];
-    setBooks(updated);
-    await StorageService.saveBooks(updated);
-
-    const updatedProf = {
-      ...userProfile,
-      readingScore: userProfile.readingScore + 10,
-    };
-    setUserProfile(updatedProf);
-    await StorageService.saveProfile(updatedProf);
+    await ApiService.addBook(title, author, genre, summary, isExchangeable, isLendable);
+    const booksRes = await ApiService.getBooks();
+    setBooks(booksRes.data.map(mapBook));
   };
 
   const toggleEventRsvp = async (event: Event) => {
-    const updatedEvents = events.map(e => e.id === event.id ? { ...e, isRsvped: !e.isRsvped } : e);
-    setEvents(updatedEvents);
-    await StorageService.saveEvents(updatedEvents);
+    const res = await ApiService.toggleRsvp(event.id);
+    setEvents(prev => prev.map(e => e.id === event.id ? { ...e, isRsvped: res.isRsvped } : e));
+  };
+    const addNewEvent = async (
+    title: string,
+    category: string,
+    date: string,
+    time: string,
+    location: string,
+    organizerName: string,
+    description: string
+  ) => {
+    await ApiService.addEvent(
+      title,
+      category,
+      date,
+      time,
+      location,
+      organizerName,
+      description
+    );
+    const eventsRes = await ApiService.getEvents();
+    setEvents(eventsRes.data.map(mapEvent));
   };
 
   const getMessagesForChat = (chatId: string) => {
@@ -259,80 +269,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const sendChatMessage = async (
-    chatId: string,
-    text: string,
-    isExchangeCard: boolean = false,
-    exchangeBook: string = "",
-    exchangeStatus: string = ""
+    chatId: string, text: string,
+    isExchangeCard: boolean = false, exchangeBook: string = "", exchangeStatus: string = ""
   ) => {
     if (!text.trim() && !isExchangeCard) return;
-
-    const newMsg: ChatMessage = {
-      id: Date.now(),
+    const reader = readers.find(r => r.name === chatId);
+    if (!reader) return;
+    await ApiService.sendMessage(reader.id, text, isExchangeCard, exchangeBook, exchangeStatus);
+    const convRes = await ApiService.getConversation(reader.id);
+    const fullConversation: ChatMessage[] = convRes.data.map((m: any) => ({
+      id: m.id,
       chatId,
-      sender: 'me',
-      messageText: text,
-      timestamp: Date.now(),
-      isExchangeCard,
-      exchangeBookTitle: exchangeBook,
-      exchangeStatus
-    };
-
-    const updated = [...messages, newMsg];
-    setMessages(updated);
-    await StorageService.saveMessages(updated);
+      sender: m.senderId === currentUserId ? 'me' : 'other',
+      messageText: m.text,
+      timestamp: new Date(m.createdAt).getTime(),
+      isExchangeCard: m.isExchangeCard,
+      exchangeBookTitle: m.exchangeBookTitle,
+      exchangeStatus: m.exchangeStatus,
+    }));
+    setMessages(prev => [...prev.filter(m => m.chatId !== chatId), ...fullConversation]);
   };
 
   const createExchangeRequest = (book: Book) => {
-    sendChatMessage(
-      book.ownerName,
-      `Initiated an exchange request for '${book.title}'.`,
-      true,
-      book.title,
-      "Requested"
-    );
+    sendChatMessage(book.ownerName, `Initiated an exchange request for '${book.title}'.`, true, book.title, "Requested");
     setSelectedBook({ ...book, isWishlist: true });
   };
 
-  const updateExchangeStatus = async (message: ChatMessage, newStatus: string) => {
-    const updatedMessages = messages.map(m => m.id === message.id ? { ...m, exchangeStatus: newStatus } : m);
-
-    let replyText = "";
-    switch (newStatus) {
-      case "Accepted":
-        replyText = "Sounds great! I'm happy to swap books. Feel free to message me your address or a local coffee shop to meet up when you're comfortable.";
-        break;
-      case "Declined":
-        replyText = "Thanks for reaching out! Let's chat more about other books in our collections.";
-        break;
-      case "Completed":
-        replyText = "Book swap completed successfully! Hope you enjoy the read! Added +20 to your Reading Score.";
-        break;
-      default:
-        replyText = `Swap agreement updated to: ${newStatus}`;
-    }
-
-    const replyMsg: ChatMessage = {
-      id: Date.now() + 1,
-      chatId: message.chatId,
-      sender: "other",
-      messageText: replyText,
-      timestamp: Date.now() + 1
-    };
-
-    const finalMessages = [...updatedMessages, replyMsg];
-    setMessages(finalMessages);
-    await StorageService.saveMessages(finalMessages);
-
-    if (newStatus === "Completed") {
-      const updatedProf = {
-        ...userProfile,
-        readingScore: userProfile.readingScore + 20,
-        monthlyProgress: Math.min(userProfile.monthlyGoal, userProfile.monthlyProgress + 1)
-      };
-      setUserProfile(updatedProf);
-      await StorageService.saveProfile(updatedProf);
-    }
+  const updateExchangeStatus = (message: ChatMessage, newStatus: string) => {
+    setMessages(prev => prev.map(m => m.id === message.id ? { ...m, exchangeStatus: newStatus } : m));
   };
 
   const startBookChat = (readerName: string, bookTitle: string) => {
@@ -344,70 +308,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedChatId(readerName);
   };
 
-  const updateUserProfile = async (
-    name: string,
-    bio: string,
-    location: string,
-    genres: string,
-    goals: string
-  ) => {
-    const updatedProf: UserProfile = {
-      ...userProfile,
-      name: name.trim() || userProfile.name,
-      bio: bio.trim() || userProfile.bio,
-      location: location.trim() || userProfile.location,
-      genres: genres.trim() || userProfile.genres,
-      goals: goals.trim() || userProfile.goals,
-    };
-    setUserProfile(updatedProf);
-    await StorageService.saveProfile(updatedProf);
+  const updateUserProfile = async (name: string, bio: string, location: string, genres: string, goals: string) => {
+    await ApiService.updateProfile({
+      name: name.trim() || undefined,
+      bio: bio.trim() || undefined,
+      location: location.trim() || undefined,
+      genres: genres.trim() || undefined,
+      goals: goals.trim() || undefined,
+    });
+    const profileRes = await ApiService.getProfile();
+    setUserProfile({
+      name: profileRes.data.name, bio: profileRes.data.bio || '',
+      location: profileRes.data.location || '', readingScore: profileRes.data.readingScore || 0,
+      stats: `Reading Score: ${profileRes.data.readingScore || 0}`,
+      genres: profileRes.data.genres || '', goals: profileRes.data.goals || '',
+      verificationStatus: !!profileRes.data.verificationStatus, streak: profileRes.data.streak || 0,
+      badges: profileRes.data.badges || [], monthlyGoal: profileRes.data.monthlyGoal || 0,
+      monthlyProgress: profileRes.data.monthlyProgress || 0,
+    });
   };
 
   return (
     <AppContext.Provider
       value={{
-        currentScreen,
-        navigateTo,
-        selectedTab,
-        selectTab,
-        selectedBook,
-        selectBook,
-        selectedReader,
-        selectReader,
-        selectedChatId,
-        selectChat,
-        notificationCount,
-        showNotifications,
-        setNotificationVisible,
-        searchQuery,
-        setSearchQuery,
-        selectedGenreFilter,
-        setGenreFilter: setSelectedGenreFilter,
-        selectedEventCategory,
-        setEventCategory: setSelectedEventCategory,
-        books,
-        readers,
-        events,
-        messages,
-        readingStories,
-        userProfile,
-        activeStoryIndex,
-        openStoryViewer,
-        closeStoryViewer,
-        showCreateStoryDialog,
-        setShowCreateStoryDialog,
-        addStory,
-        toggleLikeStory,
-        toggleLikeBook,
-        addNewBook,
-        toggleEventRsvp,
-        getMessagesForChat,
-        getRecentChats,
-        sendChatMessage,
-        createExchangeRequest,
-        updateExchangeStatus,
-        startBookChat,
-        updateUserProfile,
+        currentScreen, navigateTo, selectedTab, selectTab,
+        selectedBook, selectBook, selectedReader, selectReader, selectedChatId, selectChat,
+        notificationCount, showNotifications, setNotificationVisible,
+        searchQuery, setSearchQuery, selectedGenreFilter, setGenreFilter: setSelectedGenreFilter,
+        selectedEventCategory, setEventCategory: setSelectedEventCategory,
+        books, readers, events, messages, readingStories, userProfile,
+        activeStoryIndex, openStoryViewer, closeStoryViewer,
+        showCreateStoryDialog, setShowCreateStoryDialog, addStory, toggleLikeStory,
+        toggleLikeBook, addNewBook, toggleEventRsvp,
+        getMessagesForChat, getRecentChats, sendChatMessage, createExchangeRequest,
+        updateExchangeStatus, startBookChat, updateUserProfile, addNewEvent
       }}
     >
       {children}
