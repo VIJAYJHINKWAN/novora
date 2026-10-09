@@ -11,9 +11,9 @@ USE novora;
 CREATE TABLE users (
     id                  INT AUTO_INCREMENT PRIMARY KEY,
     name                VARCHAR(120)    NOT NULL,
-    email               VARCHAR(190)    NOT NULL UNIQUE,
+    email               VARCHAR(190)    NULL UNIQUE,
     password_hash       VARCHAR(255)    NOT NULL,
-    phone               VARCHAR(30)     NULL,
+    phone               VARCHAR(30)     NULL UNIQUE,
 
     -- profile / reader fields (matches UserProfile + Reader types)
     bio                 TEXT            NULL,
@@ -28,6 +28,20 @@ CREATE TABLE users (
 
     created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- OTP verification codes table
+CREATE TABLE otps (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    identifier  VARCHAR(190) NOT NULL,
+    type        ENUM('email', 'phone') NOT NULL,
+    code        VARCHAR(10) NOT NULL,
+    purpose     VARCHAR(50) NOT NULL DEFAULT 'signup',
+    expires_at  DATETIME NOT NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX (identifier),
+    INDEX (expires_at)
 );
 
 -- badges are a list per user -> own table

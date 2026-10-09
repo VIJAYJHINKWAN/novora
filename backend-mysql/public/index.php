@@ -42,6 +42,16 @@ try {
         exit();
     }
 
+    if ($uri === '/api/auth/send-otp' && $method === 'POST') {
+        AuthController::sendOtp($body);
+        exit();
+    }
+
+    if ($uri === '/api/auth/verify-otp' && $method === 'POST') {
+        AuthController::verifyOtp($body);
+        exit();
+    }
+
     if ($uri === '/api/register' && $method === 'POST') {
         AuthController::register($body);
         exit();

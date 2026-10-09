@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, ViewStyle, TouchableOpacity, KeyboardTypeOptions } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  ViewStyle,
+  TouchableOpacity,
+  Pressable,
+  KeyboardTypeOptions,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
 
-interface PageTurnTextFieldProps {
+export interface PageTurnTextFieldProps {
   value: string;
   onChangeText: (text: string) => void;
   label?: string;
@@ -16,11 +26,14 @@ interface PageTurnTextFieldProps {
   secureTextEntry?: boolean;
   keyboardType?: KeyboardTypeOptions;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  autoCorrect?: boolean;
+  autoComplete?: any;
+  textContentType?: any;
   style?: ViewStyle;
   testID?: string;
 }
 
-export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = ({
+export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = React.memo(({
   value,
   onChangeText,
   label,
@@ -33,15 +46,32 @@ export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = ({
   secureTextEntry = false,
   keyboardType = 'default',
   autoCapitalize = 'none',
+  autoCorrect = false,
+  autoComplete,
+  textContentType,
   style,
   testID,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+  }, []);
+
+  const handleContainerPress = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
 
   return (
     <View style={[styles.container, style]}>
       {label && <Text style={[styles.label, isFocused && styles.labelFocused]}>{label}</Text>}
-      <View
+      <Pressable
+        onPress={handleContainerPress}
         style={[
           styles.inputWrapper,
           multiline && styles.multilineWrapper,
@@ -58,6 +88,7 @@ export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = ({
           </View>
         )}
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -67,16 +98,29 @@ export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = ({
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          autoCorrect={autoCorrect}
+          spellCheck={false}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           testID={testID}
           style={[
             styles.input,
-            multiline && { height: numberOfLines * 24, textAlignVertical: 'top' },
+            multiline && {
+              height: numberOfLines * 24,
+              textAlignVertical: 'top',
+              paddingTop: Platform.OS === 'android' ? 6 : 8,
+            },
           ]}
         />
         {rightIconName && (
-          <TouchableOpacity onPress={onRightIconPress} activeOpacity={0.7} style={styles.rightIconBtn}>
+          <TouchableOpacity
+            onPress={onRightIconPress}
+            activeOpacity={0.7}
+            style={styles.rightIconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Ionicons
               name={rightIconName}
               size={20}
@@ -84,10 +128,10 @@ export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = ({
             />
           </TouchableOpacity>
         )}
-      </View>
+      </Pressable>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -110,26 +154,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 16,
     paddingHorizontal: 12,
-    height: 52,
+    minHeight: 52,
     borderWidth: 1.5,
+    backgroundColor: '#FFFFFF',
   },
   inputWrapperNormal: {
-    backgroundColor: '#FFFFFF',
     borderColor: Colors.border,
   },
   inputWrapperFocused: {
-    backgroundColor: '#FFFFFF',
     borderColor: Colors.primaryAccent,
-    shadowColor: Colors.primaryAccent,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
   },
   multilineWrapper: {
-    height: 'auto',
+    minHeight: 84,
     alignItems: 'flex-start',
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   iconContainer: {
     width: 32,
@@ -152,7 +190,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: Colors.primaryText,
-    padding: 0,
-    height: '100%',
+    paddingVertical: Platform.OS === 'android' ? 0 : 8,
+    paddingHorizontal: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
 });

@@ -1,14 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../constants/api';
+import { resilientFetch } from '../constants/api';
 
 async function authedFetch(path: string, options: RequestInit = {}) {
   const token = await AsyncStorage.getItem('litverse_auth_token');
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await resilientFetch(path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
     },
   });
 
