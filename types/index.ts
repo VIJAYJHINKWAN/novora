@@ -14,6 +14,7 @@ export interface Book {
   isExchangeable: boolean;
   isLendable: boolean;
   coverResId: number;
+  coverUrl?: string | null;
   likesCount: number;
   isLiked: boolean;
 }

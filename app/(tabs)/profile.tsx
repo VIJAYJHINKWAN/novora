@@ -111,7 +111,7 @@ export default function ProfileScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shelfRow}>
           {myOwnedBooks.map(book => (
             <TouchableOpacity key={book.id} style={styles.shelfBook} onPress={() => selectBook(book)}>
-              <BookCover title={book.title} author={book.author} coverId={book.coverResId} style={styles.cover} />
+              <BookCover title={book.title} author={book.author} coverId={book.coverResId} coverUrl={book.coverUrl} style={styles.cover} />
               <Text style={styles.bookTitle} numberOfLines={1}>{book.title}</Text>
             </TouchableOpacity>
           ))}

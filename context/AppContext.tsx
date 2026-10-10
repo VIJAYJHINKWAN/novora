@@ -43,7 +43,7 @@ interface AppContextType {
   toggleLikeStory: (storyId: number) => void;
 
   toggleLikeBook: (book: Book) => void;
-  addNewBook: (title: string, author: string, genre: string, summary: string, classification: string) => void;
+  addNewBook: (title: string, author: string, genre: string, summary: string, classification: string, coverUrl?: string) => void;
 
   toggleEventRsvp: (event: Event) => void;
   addNewEvent: (
@@ -105,7 +105,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     ownerName: book.ownerName || '', ownerDistance: book.ownerDistance || '',
     ownerRating: Number(book.ownerRating) || 0, isOwned: !!book.isOwned, isRead: !!book.isRead,
     isWishlist: !!book.isWishlist, isExchangeable: !!book.isExchangeable, isLendable: !!book.isLendable,
-    coverResId: (book.id % 5) + 1, likesCount: book.likesCount || 0, isLiked: !!book.isLiked,
+    coverResId: (book.id % 5) + 1,
+    coverUrl: book.coverUrl || book.cover_url || null,
+    likesCount: book.likesCount || 0, isLiked: !!book.isLiked,
   });
 
   const mapReader = (reader: any): Reader => ({
@@ -224,12 +226,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const addNewBook = async (title: string, author: string, genre: string, summary: string, classification: string) => {
+  const addNewBook = async (
+    title: string,
+    author: string,
+    genre: string,
+    summary: string,
+    classification: string,
+    coverUrl?: string
+  ) => {
     const isExchangeable = classification === "Available Exchange";
     const isLendable = classification === "Available Lending";
-    await ApiService.addBook(title, author, genre, summary, isExchangeable, isLendable);
-    const booksRes = await ApiService.getBooks();
-    setBooks(booksRes.data.map(mapBook));
+    try {
+      await ApiService.addBook(title, author, genre, summary, isExchangeable, isLendable, coverUrl);
+      const booksRes = await ApiService.getBooks();
+      setBooks(booksRes.data.map(mapBook));
+    } catch (e) {
+      const newBook: Book = {
+        id: Date.now(),
+        title,
+        author,
+        genre,
+        summary,
+        rating: 4.8,
+        ownerName: userProfile.name || 'You',
+        ownerDistance: '0.0 km away',
+        ownerRating: userProfile.readingScore || 5.0,
+        isOwned: classification === 'Owned',
+        isRead: classification === 'Read',
+        isWishlist: classification === 'Wishlist',
+        isExchangeable,
+        isLendable,
+        coverResId: Math.floor(Math.random() * 5) + 1,
+        coverUrl: coverUrl || null,
+        likesCount: 0,
+        isLiked: false,
+      };
+      setBooks(prev => [newBook, ...prev]);
+    }
   };
 
   const toggleEventRsvp = async (event: Event) => {
@@ -333,6 +366,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  const signOut = async () => {
+    try {
+      await AsyncStorage.removeItem('litverse_auth_token');
+      setCurrentUserId(null);
+      setCurrentScreen('LoginSignup');
+    } catch (e) {}
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -347,7 +388,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleLikeBook, addNewBook, toggleEventRsvp,
         getMessagesForChat, getRecentChats, sendChatMessage, createExchangeRequest,
         updateExchangeStatus, startBookChat, updateUserProfile, addNewEvent,
-        refreshAppData: loadAppData
+        refreshAppData: loadAppData, signOut
       }}
     >
       {children}

@@ -26,10 +26,10 @@ export const ApiService = {
   // Books
   getBooks: () => authedFetch('/api/books'),
 
-  addBook: (title: string, author: string, genre: string, summary: string, isExchangeable: boolean, isLendable: boolean) =>
+  addBook: (title: string, author: string, genre: string, summary: string, isExchangeable: boolean, isLendable: boolean, coverUrl?: string) =>
     authedFetch('/api/books', {
       method: 'POST',
-      body: JSON.stringify({ title, author, genre, summary, isExchangeable, isLendable }),
+      body: JSON.stringify({ title, author, genre, summary, isExchangeable, isLendable, coverUrl }),
     }),
 
   toggleLikeBook: (bookId: number) =>

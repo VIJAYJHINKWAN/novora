@@ -35,7 +35,7 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* Header / Cover */}
             <View style={styles.headerRow}>
-              <BookCover title={book.title} author={book.author} coverId={book.coverResId} style={styles.cover} />
+              <BookCover title={book.title} author={book.author} coverId={book.coverResId} coverUrl={book.coverUrl} style={styles.cover} />
               
               <View style={styles.metaCol}>
                 <PageTurnBadge text={book.genre} isAccent style={{ marginBottom: 6 }} />

@@ -49,8 +49,8 @@ class BookController
 
         $db = Database::getConnection();
         $stmt = $db->prepare('
-            INSERT INTO books (owner_id, title, author, genre, summary, is_exchangeable, is_lendable)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO books (owner_id, title, author, genre, summary, is_exchangeable, is_lendable, cover_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ');
         $stmt->execute([
             $userId,
@@ -60,6 +60,7 @@ class BookController
             $body['summary'] ?? null,
             !empty($body['isExchangeable']) ? 1 : 0,
             !empty($body['isLendable']) ? 1 : 0,
+            $body['coverUrl'] ?? ($body['cover_url'] ?? null),
         ]);
 
         self::json(['status' => 'success', 'id' => (int) $db->lastInsertId()], 201);

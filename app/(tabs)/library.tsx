@@ -68,7 +68,7 @@ export default function LibraryScreen() {
               style={styles.gridItem}
               onPress={() => selectBook(book)}
             >
-              <BookCover title={book.title} author={book.author} coverId={book.coverResId} style={styles.cover} />
+              <BookCover title={book.title} author={book.author} coverId={book.coverResId} coverUrl={book.coverUrl} style={styles.cover} />
               <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
               <Text style={styles.bookAuthor} numberOfLines={1}>{book.author}</Text>
 

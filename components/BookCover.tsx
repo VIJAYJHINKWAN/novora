@@ -1,35 +1,63 @@
-import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ViewStyle, Image } from 'react-native';
 import { Colors, Fonts } from '../constants/theme';
 
 interface BookCoverProps {
   title: string;
   author: string;
-  coverId: number;
+  coverId?: number;
+  coverUrl?: string | null;
   style?: ViewStyle;
 }
 
-export const BookCover: React.FC<BookCoverProps> = ({ title, author, coverId, style }) => {
+export const BookCover: React.FC<BookCoverProps> = ({ title, author, coverId = 1, coverUrl, style }) => {
+  const [imageError, setImageError] = useState(false);
+
+  // Normalize HTTP to HTTPS for secure image loading
+  const normalizedCoverUrl = coverUrl ? coverUrl.replace(/^http:\/\//i, 'https://') : null;
+
+  // Reset image error whenever cover URL prop changes
+  React.useEffect(() => {
+    setImageError(false);
+  }, [normalizedCoverUrl]);
+
   const gradient = Colors.coverGradients[coverId] || Colors.coverGradients.default;
   const bgStyle = { backgroundColor: gradient[0] };
+  const showImage = Boolean(normalizedCoverUrl && !imageError);
 
   return (
     <View style={[styles.coverContainer, bgStyle, style]}>
-      {/* Spine Accent Line */}
-      <View style={styles.spineLine} />
+      {showImage ? (
+        <>
+          <Image
+            key={normalizedCoverUrl}
+            source={{ uri: normalizedCoverUrl! }}
+            style={styles.realCoverImage}
+            resizeMode="cover"
+            onError={() => setImageError(true)}
+          />
+          {/* Subtle real-book left spine shadow and right edge highlight */}
+          <View style={styles.spineShadowOverlay} />
+        </>
+      ) : (
+        <>
+          {/* Spine Accent Line */}
+          <View style={styles.spineLine} />
 
-      <View style={styles.content}>
-        <Text style={styles.editionText}>P A G E T U R N   E D I T I O N</Text>
-        <View style={styles.dividerLine} />
-        <View>
-          <Text style={styles.titleText} numberOfLines={3} ellipsizeMode="tail">
-            {title}
-          </Text>
-          <Text style={styles.authorText} numberOfLines={1} ellipsizeMode="tail">
-            {author}
-          </Text>
-        </View>
-      </View>
+          <View style={styles.content}>
+            <Text style={styles.editionText}>P A G E T U R N   E D I T I O N</Text>
+            <View style={styles.dividerLine} />
+            <View>
+              <Text style={styles.titleText} numberOfLines={3} ellipsizeMode="tail">
+                {title}
+              </Text>
+              <Text style={styles.authorText} numberOfLines={1} ellipsizeMode="tail">
+                {author}
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
     </View>
   );
 };
@@ -43,6 +71,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     position: 'relative',
     overflow: 'hidden',
+    backgroundColor: '#1E1E24',
+  },
+  realCoverImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  spineShadowOverlay: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.15)',
   },
   spineLine: {
     position: 'absolute',

@@ -54,7 +54,7 @@ export default function HomeScreen() {
   const [showAddBook, setShowAddBook] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
-  const genres = [
+  const defaultGenres = [
     'All',
     'Indian Lit',
     'Modern Fiction',
@@ -63,6 +63,9 @@ export default function HomeScreen() {
     'Poetry',
     'Epic Drama',
   ];
+  const genres = Array.from(
+    new Set([...defaultGenres, ...books.map(b => b.genre).filter(Boolean)])
+  );
 
   const filteredBooks = selectedGenreFilter === 'All'
     ? books
@@ -178,7 +181,7 @@ export default function HomeScreen() {
             style={styles.bookCard}
             onPress={() => selectBook(book)}
           >
-            <BookCover title={book.title} author={book.author} coverId={book.coverResId} style={styles.bookCover} />
+            <BookCover title={book.title} author={book.author} coverId={book.coverResId} coverUrl={book.coverUrl} style={styles.bookCover} />
 
             <View style={styles.bookDetails}>
               <View style={styles.bookGenreRow}>
