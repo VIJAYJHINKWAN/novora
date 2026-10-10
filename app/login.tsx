@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import { PageTurnTextField } from '../components/PageTurnTextField';
 import { PageTurnButton } from '../components/PageTurnButton';
+import { ForgotPasswordModal } from '../components/modals/ForgotPasswordModal';
 import { resilientFetch } from '../constants/api';
 import { useApp } from '../context/AppContext';
 
@@ -51,6 +52,13 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Forgot Password & Contextual Auth State
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [authFeedback, setAuthFeedback] = useState<{
+    type: 'incorrect_password' | 'not_registered' | 'error';
+    message: string;
+  } | null>(null);
+
   // Email format validation
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -64,6 +72,8 @@ export default function LoginScreen() {
   // Sign In Handler
   const handleSignIn = async () => {
     const trimmedEmail = email.trim();
+    setAuthFeedback(null);
+
     if (!trimmedEmail) {
       Alert.alert('Required', 'Please enter your email address.');
       return;
@@ -89,7 +99,51 @@ export default function LoginScreen() {
       });
 
       const data = await response.json();
+
       if (!response.ok || data.status !== 'success') {
+        // Case 1: Account not registered in database
+        if (data.code === 'NOT_REGISTERED' || data.message?.toLowerCase().includes('not registered')) {
+          setAuthFeedback({
+            type: 'not_registered',
+            message: 'You are not registered yet. Please create an account to get started.',
+          });
+          Alert.alert(
+            'Not Registered',
+            'You are not registered yet. Would you like to create an account now?',
+            [
+              {
+                text: 'Create Account',
+                onPress: () => {
+                  setAuthFeedback(null);
+                  setMode('register');
+                },
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ]
+          );
+          return;
+        }
+
+        // Case 2: User exists, but incorrect password
+        if (data.code === 'INCORRECT_PASSWORD' || data.message?.toLowerCase().includes('incorrect')) {
+          setAuthFeedback({
+            type: 'incorrect_password',
+            message: 'The password entered is incorrect.',
+          });
+          Alert.alert(
+            'Incorrect Password',
+            'The password entered is incorrect. Would you like to reset your password?',
+            [
+              {
+                text: 'Forgot Password?',
+                onPress: () => setShowForgotPasswordModal(true),
+              },
+              { text: 'Try Again', style: 'cancel' },
+            ]
+          );
+          return;
+        }
+
         throw new Error(data.message || 'Invalid email or password.');
       }
 
@@ -199,7 +253,10 @@ export default function LoginScreen() {
             <View style={styles.modeToggleContainer}>
               <TouchableOpacity
                 style={[styles.modeToggleTab, mode === 'login' && styles.modeToggleTabActive]}
-                onPress={() => setMode('login')}
+                onPress={() => {
+                  setAuthFeedback(null);
+                  setMode('login');
+                }}
               >
                 <Text style={[styles.modeToggleText, mode === 'login' && styles.modeToggleTextActive]}>
                   Sign In
@@ -208,13 +265,66 @@ export default function LoginScreen() {
 
               <TouchableOpacity
                 style={[styles.modeToggleTab, mode === 'register' && styles.modeToggleTabActive]}
-                onPress={() => setMode('register')}
+                onPress={() => {
+                  setAuthFeedback(null);
+                  setMode('register');
+                }}
               >
                 <Text style={[styles.modeToggleText, mode === 'register' && styles.modeToggleTextActive]}>
                   Sign Up
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Contextual Auth Notification Banner */}
+            {authFeedback && (
+              <View
+                style={[
+                  styles.authBanner,
+                  authFeedback.type === 'not_registered'
+                    ? styles.authBannerNotRegistered
+                    : styles.authBannerIncorrect,
+                ]}
+              >
+                <Ionicons
+                  name={authFeedback.type === 'not_registered' ? 'person-add-outline' : 'key-outline'}
+                  size={20}
+                  color={authFeedback.type === 'not_registered' ? '#2563EB' : '#C2410C'}
+                  style={{ marginTop: 2, marginRight: 10 }}
+                />
+                <View style={styles.authBannerBody}>
+                  <Text
+                    style={[
+                      styles.authBannerTitle,
+                      authFeedback.type === 'not_registered'
+                        ? styles.authBannerTitleNotRegistered
+                        : styles.authBannerTitleIncorrect,
+                    ]}
+                  >
+                    {authFeedback.type === 'not_registered' ? 'Not Registered Yet' : 'Incorrect Password'}
+                  </Text>
+                  <Text style={styles.authBannerText}>{authFeedback.message}</Text>
+                  {authFeedback.type === 'not_registered' ? (
+                    <TouchableOpacity
+                      style={styles.authBannerActionBtn}
+                      onPress={() => {
+                        setAuthFeedback(null);
+                        setMode('register');
+                      }}
+                    >
+                      <Text style={styles.authBannerActionTextBlue}>Create an account now →</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.authBannerActionBtn}
+                      onPress={() => setShowForgotPasswordModal(true)}
+                    >
+                      <Text style={styles.authBannerActionTextOrange}>Forgot Password / Reset Now →</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
 
             {/* FORM BODY */}
             {mode === 'register' ? (
@@ -280,7 +390,10 @@ export default function LoginScreen() {
                   <PageTurnTextField
                     label="Email Address"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      if (authFeedback) setAuthFeedback(null);
+                    }}
                     placeholder="reader@example.com"
                     iconName="mail-outline"
                     keyboardType="email-address"
@@ -294,7 +407,10 @@ export default function LoginScreen() {
                 <PageTurnTextField
                   label="Password"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    if (authFeedback) setAuthFeedback(null);
+                  }}
                   placeholder="Enter your password"
                   iconName="lock-closed-outline"
                   rightIconName={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -304,19 +420,33 @@ export default function LoginScreen() {
                   style={{ marginTop: 6 }}
                 />
 
+                {/* Forgot Password Action Link */}
+                <View style={styles.forgotPasswordRow}>
+                  <TouchableOpacity
+                    onPress={() => setShowForgotPasswordModal(true)}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <PageTurnButton
                   text={isSubmitting ? 'Signing in...' : 'Sign In'}
                   onPress={handleSignIn}
                   disabled={isSubmitting}
                   iconName="log-in-outline"
-                  style={{ marginTop: 24 }}
+                  style={{ marginTop: 18 }}
                 />
               </View>
             )}
 
             {/* Bottom Mode Switch Link */}
             <TouchableOpacity
-              onPress={() => setMode(mode === 'login' ? 'register' : 'login')}
+              onPress={() => {
+                setAuthFeedback(null);
+                setMode(mode === 'login' ? 'register' : 'login');
+              }}
               style={styles.switchModeRow}
             >
               <Text style={styles.switchModeText}>
@@ -329,6 +459,29 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Forgot Password Reset Modal */}
+      <ForgotPasswordModal
+        visible={showForgotPasswordModal}
+        initialEmail={email}
+        onDismiss={() => setShowForgotPasswordModal(false)}
+        onSuccess={(newPassword, registeredEmail) => {
+          setShowForgotPasswordModal(false);
+          setEmail(registeredEmail);
+          setPassword(newPassword);
+          setAuthFeedback(null);
+          Alert.alert(
+            'Password Updated',
+            'Your password has been reset successfully! You can now sign in with your new password.'
+          );
+        }}
+        onSwitchToRegister={(registeredEmail) => {
+          setShowForgotPasswordModal(false);
+          setEmail(registeredEmail);
+          setMode('register');
+          setAuthFeedback(null);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -474,6 +627,69 @@ const styles = StyleSheet.create({
   criteriaTextMet: {
     color: Colors.successAccent,
     fontWeight: '600',
+  },
+  forgotPasswordRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    marginBottom: 4,
+    paddingRight: 2,
+  },
+  forgotPasswordText: {
+    fontSize: 13,
+    color: Colors.primaryAccent,
+    fontWeight: '600',
+  },
+  authBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  authBannerIncorrect: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+  },
+  authBannerNotRegistered: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#93C5FD',
+  },
+  authBannerBody: {
+    flex: 1,
+  },
+  authBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  authBannerTitleIncorrect: {
+    color: '#9A3412',
+  },
+  authBannerTitleNotRegistered: {
+    color: '#1E40AF',
+  },
+  authBannerText: {
+    fontSize: 13,
+    color: Colors.primaryText,
+    lineHeight: 18,
+  },
+  authBannerActionBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  authBannerActionTextOrange: {
+    fontSize: 13,
+    color: '#C2410C',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  authBannerActionTextBlue: {
+    fontSize: 13,
+    color: '#1D4ED8',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   switchModeRow: {
     alignItems: 'center',

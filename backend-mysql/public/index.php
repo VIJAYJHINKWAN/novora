@@ -62,6 +62,11 @@ try {
         exit();
     }
 
+    if ($uri === '/api/auth/reset-password' && $method === 'POST') {
+        AuthController::resetPassword($body);
+        exit();
+    }
+
     // ---------- Protected routes (require a valid JWT) ----------
     if ($uri === '/api/books' && $method === 'GET') {
         $userId = AuthMiddleware::requireAuth();

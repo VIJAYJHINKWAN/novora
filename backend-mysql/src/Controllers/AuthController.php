@@ -272,8 +272,23 @@ class AuthController
         $stmt->execute([$identifier, $identifier]);
         $user = $stmt->fetch();
 
-        if (!$user || !password_verify($password, $user['password_hash'])) {
-            self::json(['status' => 'error', 'message' => 'Invalid credentials. Please check your details and try again.'], 401);
+        // 1. Check if user is registered at all
+        if (!$user) {
+            self::json([
+                'status'  => 'error',
+                'code'    => 'NOT_REGISTERED',
+                'message' => 'You are not registered yet. Please sign up to create an account.',
+            ], 404);
+            return;
+        }
+
+        // 2. Check if password matches
+        if (!password_verify($password, $user['password_hash'])) {
+            self::json([
+                'status'  => 'error',
+                'code'    => 'INCORRECT_PASSWORD',
+                'message' => 'The password entered is incorrect.',
+            ], 401);
             return;
         }
 
@@ -288,6 +303,72 @@ class AuthController
                 'email' => $user['email'],
                 'phone' => $user['phone'],
             ],
+        ]);
+    }
+
+    /**
+     * POST /api/auth/reset-password
+     * Resets a user's password after validating policy.
+     */
+    public static function resetPassword(array $body): void
+    {
+        $identifier = trim($body['identifier'] ?? $body['email'] ?? $body['phone'] ?? '');
+        $newPassword = $body['password'] ?? $body['newPassword'] ?? '';
+
+        if (!$identifier) {
+            self::json(['status' => 'error', 'message' => 'Email address is required'], 400);
+            return;
+        }
+
+        if (!$newPassword) {
+            self::json(['status' => 'error', 'message' => 'New password is required'], 400);
+            return;
+        }
+
+        // Password requirements validation (at least 8 chars, letter, number, symbol)
+        if (strlen($newPassword) < 8) {
+            self::json(['status' => 'error', 'message' => 'Password must be at least 8 characters long'], 400);
+            return;
+        }
+        if (!preg_match('/[a-zA-Z]/', $newPassword)) {
+            self::json(['status' => 'error', 'message' => 'Password must contain at least one letter'], 400);
+            return;
+        }
+        if (!preg_match('/[0-9]/', $newPassword)) {
+            self::json(['status' => 'error', 'message' => 'Password must contain at least one number'], 400);
+            return;
+        }
+        if (!preg_match('/[^a-zA-Z0-9]/', $newPassword)) {
+            self::json(['status' => 'error', 'message' => 'Password must contain at least one special symbol (e.g. !@#$%^&*)'], 400);
+            return;
+        }
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare('
+            SELECT id, name, email, phone
+            FROM users
+            WHERE email = ? OR phone = ?
+            LIMIT 1
+        ');
+        $stmt->execute([$identifier, $identifier]);
+        $user = $stmt->fetch();
+
+        if (!$user) {
+            self::json([
+                'status'  => 'error',
+                'code'    => 'NOT_REGISTERED',
+                'message' => 'You are not registered yet. Please sign up to create an account.',
+            ], 404);
+            return;
+        }
+
+        $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+        $update = $db->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
+        $update->execute([$hash, (int) $user['id']]);
+
+        self::json([
+            'status'  => 'success',
+            'message' => 'Your password has been reset successfully. Please sign in with your new password.',
         ]);
     }
 
