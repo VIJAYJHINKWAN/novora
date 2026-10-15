@@ -87,6 +87,39 @@ class BookController
         self::json(['status' => 'success', 'isLiked' => $liked]);
     }
 
+    // PUT /api/books/{id}/availability - update availability for a book owned by the current user
+    public static function updateAvailability(int $userId, int $bookId, array $body): void
+    {
+        $db = Database::getConnection();
+
+        $check = $db->prepare('SELECT id FROM books WHERE id = ? AND owner_id = ?');
+        $check->execute([$bookId, $userId]);
+        if (!$check->fetch()) {
+            self::json(['status' => 'error', 'message' => 'Book not found or unauthorized'], 403);
+            return;
+        }
+
+        $fields = [];
+        $params = [];
+
+        if (array_key_exists('isExchangeable', $body)) {
+            $fields[] = 'is_exchangeable = ?';
+            $params[] = !empty($body['isExchangeable']) ? 1 : 0;
+        }
+        if (array_key_exists('isLendable', $body)) {
+            $fields[] = 'is_lendable = ?';
+            $params[] = !empty($body['isLendable']) ? 1 : 0;
+        }
+
+        if (!empty($fields)) {
+            $params[] = $bookId;
+            $stmt = $db->prepare('UPDATE books SET ' . implode(', ', $fields) . ' WHERE id = ?');
+            $stmt->execute($params);
+        }
+
+        self::json(['status' => 'success']);
+    }
+
     private static function json(array $data, int $statusCode = 200): void
     {
         http_response_code($statusCode);

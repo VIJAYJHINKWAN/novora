@@ -35,6 +35,12 @@ export const ApiService = {
   toggleLikeBook: (bookId: number) =>
     authedFetch(`/api/books/${bookId}/like`, { method: 'POST' }),
 
+  updateBookAvailability: (bookId: number, isExchangeable: boolean, isLendable: boolean) =>
+    authedFetch(`/api/books/${bookId}/availability`, {
+      method: 'PUT',
+      body: JSON.stringify({ isExchangeable, isLendable }),
+    }),
+
   // Readers
   getReaders: () => authedFetch('/api/readers'),
 

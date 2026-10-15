@@ -36,38 +36,43 @@ export const ChatScreenOverlay: React.FC<ChatScreenOverlayProps> = ({
 
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
           {item.isExchangeCard ? (
-            <View style={styles.exchangeCard}>
-              <View style={styles.exchangeHeader}>
-                <Ionicons name="swap-horizontal" size={18} color={Colors.primaryAccent} />
-                <Text style={styles.exchangeTitle}>Book Exchange Request</Text>
-              </View>
-              <Text style={styles.exchangeBook}>"{item.exchangeBookTitle}"</Text>
-              <Text style={styles.exchangeStatus}>Status: {item.exchangeStatus || 'Requested'}</Text>
+            (() => {
+              const isBorrow = item.messageText?.toLowerCase().includes('borrow');
+              return (
+                <View style={styles.exchangeCard}>
+                  <View style={styles.exchangeHeader}>
+                    <Ionicons name={isBorrow ? "book-outline" : "swap-horizontal"} size={18} color={Colors.primaryAccent} />
+                    <Text style={styles.exchangeTitle}>{isBorrow ? 'Book Borrow Request' : 'Book Exchange Request'}</Text>
+                  </View>
+                  <Text style={styles.exchangeBook}>"{item.exchangeBookTitle}"</Text>
+                  <Text style={styles.exchangeStatus}>Status: {item.exchangeStatus || 'Requested'}</Text>
 
-              {item.exchangeStatus === 'Requested' && (
-                <View style={styles.exchangeActions}>
-                  <PageTurnButton
-                    text="Accept Exchange"
-                    onPress={() => updateExchangeStatus(item, 'Accepted')}
-                    style={styles.actionBtn}
-                  />
-                  <PageTurnButton
-                    text="Decline"
-                    isSecondary
-                    onPress={() => updateExchangeStatus(item, 'Declined')}
-                    style={[styles.actionBtn, { marginLeft: 8 }]}
-                  />
+                  {item.exchangeStatus === 'Requested' && (
+                    <View style={styles.exchangeActions}>
+                      <PageTurnButton
+                        text={isBorrow ? "Accept Borrow" : "Accept Exchange"}
+                        onPress={() => updateExchangeStatus(item, 'Accepted')}
+                        style={styles.actionBtn}
+                      />
+                      <PageTurnButton
+                        text="Decline"
+                        isSecondary
+                        onPress={() => updateExchangeStatus(item, 'Declined')}
+                        style={[styles.actionBtn, { marginLeft: 8 }]}
+                      />
+                    </View>
+                  )}
+
+                  {item.exchangeStatus === 'Accepted' && (
+                    <PageTurnButton
+                      text={isBorrow ? "Mark Return Completed (+20 pts)" : "Mark Swap Completed (+20 pts)"}
+                      onPress={() => updateExchangeStatus(item, 'Completed')}
+                      style={[styles.actionBtn, { marginTop: 8 }]}
+                    />
+                  )}
                 </View>
-              )}
-
-              {item.exchangeStatus === 'Accepted' && (
-                <PageTurnButton
-                  text="Mark Swap Completed (+20 pts)"
-                  onPress={() => updateExchangeStatus(item, 'Completed')}
-                  style={[styles.actionBtn, { marginTop: 8 }]}
-                />
-              )}
-            </View>
+              );
+            })()
           ) : (
             <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>
               {item.messageText}

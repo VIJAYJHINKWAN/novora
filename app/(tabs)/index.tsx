@@ -22,6 +22,9 @@ import { CreateStoryDialog } from '../../components/modals/CreateStoryDialog';
 import { StoryViewerModal } from '../../components/modals/StoryViewerModal';
 import { AddBookModal } from '../../components/modals/AddBookModal';
 import { NearbyMapOverlay } from '../../components/NearbyMapOverlay';
+import { BookSearchBar } from '../../components/BookSearchBar';
+import { BookSearchResultCard } from '../../components/BookSearchResultCard';
+import { ChatScreenOverlay } from '../../components/modals/ChatScreenOverlay';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -32,14 +35,23 @@ export default function HomeScreen() {
     notificationCount,
     showNotifications,
     setNotificationVisible,
+    bookSearchQuery,
+    setBookSearchQuery,
+    bookAvailabilityFilter,
+    setBookAvailabilityFilter,
     selectedGenreFilter,
     setGenreFilter,
     selectedBook,
     selectBook,
     selectedReader,
     selectReader,
+    selectedChatId,
+    selectChat,
     toggleLikeBook,
+    addNewBook,
+    updateBookAvailability,
     createExchangeRequest,
+    createBorrowRequest,
     activeStoryIndex,
     openStoryViewer,
     closeStoryViewer,
@@ -47,7 +59,6 @@ export default function HomeScreen() {
     setShowCreateStoryDialog,
     addStory,
     toggleLikeStory,
-    addNewBook,
     startBookChat,
   } = useApp();
 
@@ -66,6 +77,35 @@ export default function HomeScreen() {
   const genres = Array.from(
     new Set([...defaultGenres, ...books.map(b => b.genre).filter(Boolean)])
   );
+
+  const isSearchActive = bookSearchQuery.trim().length > 0 || bookAvailabilityFilter !== 'ALL';
+
+  const searchFilteredBooks = books.filter(b => {
+    // Text search filter
+    if (bookSearchQuery.trim()) {
+      const q = bookSearchQuery.toLowerCase();
+      const matchTitle = b.title.toLowerCase().includes(q);
+      const matchAuthor = b.author.toLowerCase().includes(q);
+      const matchGenre = b.genre.toLowerCase().includes(q);
+      const matchOwner = b.ownerName.toLowerCase().includes(q);
+      if (!matchTitle && !matchAuthor && !matchGenre && !matchOwner) {
+        return false;
+      }
+    }
+
+    // Availability / Uploader filter
+    if (bookAvailabilityFilter === 'OTHERS') {
+      return !b.isOwned;
+    }
+    if (bookAvailabilityFilter === 'SWAP') {
+      return b.isExchangeable;
+    }
+    if (bookAvailabilityFilter === 'BORROW') {
+      return b.isLendable;
+    }
+
+    return true;
+  });
 
   const filteredBooks = selectedGenreFilter === 'All'
     ? books
@@ -89,134 +129,185 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Designated Book Search Bar Section (No collision with other UI) */}
+      <BookSearchBar
+        query={bookSearchQuery}
+        onChangeQuery={setBookSearchQuery}
+        availabilityFilter={bookAvailabilityFilter}
+        onChangeFilter={setBookAvailabilityFilter}
+        onClear={() => {
+          setBookSearchQuery('');
+          setBookAvailabilityFilter('ALL');
+        }}
+        totalResultsCount={searchFilteredBooks.length}
+        isSearching={isSearchActive}
+      />
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Stories / Reading Notes Row */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Reading Notes & Spotlights</Text>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesContainer}>
-          {/* Add Story Button */}
-          <TouchableOpacity
-            style={styles.addStoryItem}
-            onPress={() => setShowCreateStoryDialog(true)}
-          >
-            <View style={styles.addStoryCircle}>
-              <Ionicons name="add" size={24} color={Colors.primaryAccent} />
+        {isSearchActive ? (
+          /* Search Results View */
+          <View style={styles.searchResultsContainer}>
+            <View style={styles.searchHeaderRow}>
+              <View>
+                <Text style={styles.searchSectionTitle}>Community Search Results</Text>
+                <Text style={styles.searchSubtitle}>
+                  {searchFilteredBooks.length === 1
+                    ? '1 book matching your criteria'
+                    : `${searchFilteredBooks.length} books matching your criteria`}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setBookSearchQuery('');
+                  setBookAvailabilityFilter('ALL');
+                }}
+                style={styles.clearSearchBadge}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle-outline" size={14} color={Colors.alertAccent} />
+                <Text style={styles.clearSearchBadgeText}>Clear Search</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.storyName}>Share Note</Text>
-          </TouchableOpacity>
 
-          {/* Stories List */}
-          {readingStories.map((story, index) => (
-            <TouchableOpacity
-              key={story.id}
-              style={styles.storyItem}
-              onPress={() => openStoryViewer(index)}
-            >
-              <View style={styles.storyRing}>
-                <UserAvatar name={story.authorName} size={48} />
-              </View>
-              <Text style={styles.storyName} numberOfLines={1}>
-                {story.authorName.split(' ')[0]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Genre Filter Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
-          {genres.map(g => (
-            <TouchableOpacity
-              key={g}
-              style={[styles.chip, selectedGenreFilter === g && styles.chipActive]}
-              onPress={() => setGenreFilter(g)}
-            >
-              <Text style={[styles.chipText, selectedGenreFilter === g && styles.chipTextActive]}>
-                {g}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Featured Readers Nearby */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Featured Readers Nearby</Text>
-          <TouchableOpacity style={styles.mapToggleBtn} onPress={() => setShowMap(true)}>
-            <Ionicons name="map-outline" size={16} color={Colors.primaryAccent} />
-            <Text style={styles.mapToggleText}>Map View</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.readersContainer}>
-          {readers.map(reader => (
-            <TouchableOpacity
-              key={reader.id}
-              style={styles.readerCard}
-              onPress={() => selectReader(reader)}
-            >
-              <UserAvatar name={reader.name} size={48} />
-              <View style={styles.readerInfo}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.readerName} numberOfLines={1}>{reader.name}</Text>
-                  {reader.verificationBadge && (
-                    <Ionicons name="checkmark-circle" size={14} color={Colors.primaryAccent} style={{ marginLeft: 2 }} />
-                  )}
+            {searchFilteredBooks.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="book-outline" size={42} color={Colors.primaryAccent} />
                 </View>
-                <Text style={styles.matchScore}>{reader.matchPercentage}% Match • {reader.readingScore} pts</Text>
-                <Text style={styles.readerBio} numberOfLines={2}>{reader.bio}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Community Shelf Feed */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Community Shelf</Text>
-        </View>
-
-        {filteredBooks.map(book => (
-          <TouchableOpacity
-            key={book.id}
-            style={styles.bookCard}
-            onPress={() => selectBook(book)}
-          >
-            <BookCover title={book.title} author={book.author} coverId={book.coverResId} coverUrl={book.coverUrl} style={styles.bookCover} />
-
-            <View style={styles.bookDetails}>
-              <View style={styles.bookGenreRow}>
-                <PageTurnBadge text={book.genre} isAccent />
-                <TouchableOpacity onPress={() => toggleLikeBook(book)} style={styles.heartBtn}>
-                  <Ionicons
-                    name={book.isLiked ? "heart" : "heart-outline"}
-                    size={20}
-                    color={book.isLiked ? Colors.alertAccent : Colors.secondaryText}
-                  />
-                  <Text style={styles.likeCount}>{book.likesCount}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.bookTitle}>{book.title}</Text>
-              <Text style={styles.bookAuthor}>by {book.author}</Text>
-
-              <Text style={styles.bookOwner}>Offered by {book.ownerName} ({book.ownerDistance})</Text>
-
-              <View style={styles.cardFooter}>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={14} color="#FFD700" />
-                  <Text style={styles.ratingText}>{book.rating.toFixed(1)}</Text>
-                </View>
-
+                <Text style={styles.emptyTitle}>No Books Found</Text>
+                <Text style={styles.emptySubtitle}>
+                  {bookSearchQuery.trim()
+                    ? `No community books found for "${bookSearchQuery}".`
+                    : 'No books match the selected availability filter.'}
+                </Text>
                 <PageTurnButton
-                  text="Swap / Borrow"
-                  isSecondary
-                  onPress={() => selectBook(book)}
-                  style={styles.smallBtn}
+                  text="View All Community Books"
+                  onPress={() => {
+                    setBookSearchQuery('');
+                    setBookAvailabilityFilter('ALL');
+                  }}
+                  style={{ marginTop: 16 }}
                 />
               </View>
+            ) : (
+              <View style={styles.cardsList}>
+                {searchFilteredBooks.map(book => (
+                  <BookSearchResultCard
+                    key={book.id}
+                    book={book}
+                    onPress={() => selectBook(book)}
+                    onSwap={() => createExchangeRequest(book)}
+                    onBorrow={() => createBorrowRequest(book)}
+                    onMessage={() => startBookChat(book.ownerName, book.title)}
+                    onToggleLike={() => toggleLikeBook(book)}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          /* Standard Home Feed View */
+          <>
+            {/* Stories / Reading Notes Row */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Reading Notes & Spotlights</Text>
             </View>
-          </TouchableOpacity>
-        ))}
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesContainer}>
+              {/* Add Story Button */}
+              <TouchableOpacity
+                style={styles.addStoryItem}
+                onPress={() => setShowCreateStoryDialog(true)}
+              >
+                <View style={styles.addStoryCircle}>
+                  <Ionicons name="add" size={24} color={Colors.primaryAccent} />
+                </View>
+                <Text style={styles.storyName}>Share Note</Text>
+              </TouchableOpacity>
+
+              {/* Stories List */}
+              {readingStories.map((story, index) => (
+                <TouchableOpacity
+                  key={story.id}
+                  style={styles.storyItem}
+                  onPress={() => openStoryViewer(index)}
+                >
+                  <View style={styles.storyRing}>
+                    <UserAvatar name={story.authorName} size={48} />
+                  </View>
+                  <Text style={styles.storyName} numberOfLines={1}>
+                    {story.authorName.split(' ')[0]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Genre Filter Chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
+              {genres.map(g => (
+                <TouchableOpacity
+                  key={g}
+                  style={[styles.chip, selectedGenreFilter === g && styles.chipActive]}
+                  onPress={() => setGenreFilter(g)}
+                >
+                  <Text style={[styles.chipText, selectedGenreFilter === g && styles.chipTextActive]}>
+                    {g}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Featured Readers Nearby */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Featured Readers Nearby</Text>
+              <TouchableOpacity style={styles.mapToggleBtn} onPress={() => setShowMap(true)}>
+                <Ionicons name="map-outline" size={16} color={Colors.primaryAccent} />
+                <Text style={styles.mapToggleText}>Map View</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.readersContainer}>
+              {readers.map(reader => (
+                <TouchableOpacity
+                  key={reader.id}
+                  style={styles.readerCard}
+                  onPress={() => selectReader(reader)}
+                >
+                  <UserAvatar name={reader.name} size={48} />
+                  <View style={styles.readerInfo}>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.readerName} numberOfLines={1}>{reader.name}</Text>
+                      {reader.verificationBadge && (
+                        <Ionicons name="checkmark-circle" size={14} color={Colors.primaryAccent} style={{ marginLeft: 2 }} />
+                      )}
+                    </View>
+                    <Text style={styles.matchScore}>{reader.matchPercentage}% Match • {reader.readingScore} pts</Text>
+                    <Text style={styles.readerBio} numberOfLines={2}>{reader.bio}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Community Shelf Feed */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Community Shelf</Text>
+            </View>
+
+            <View style={styles.cardsList}>
+              {filteredBooks.map(book => (
+                <BookSearchResultCard
+                  key={book.id}
+                  book={book}
+                  onPress={() => selectBook(book)}
+                  onSwap={() => createExchangeRequest(book)}
+                  onBorrow={() => createBorrowRequest(book)}
+                  onMessage={() => startBookChat(book.ownerName, book.title)}
+                  onToggleLike={() => toggleLikeBook(book)}
+                />
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Floating Action Button */}
@@ -237,7 +328,25 @@ export default function HomeScreen() {
             createExchangeRequest(selectedBook);
             selectBook(null);
           }}
+          onBorrowRequest={() => {
+            createBorrowRequest(selectedBook);
+            selectBook(null);
+          }}
+          onMessageOwner={() => {
+            startBookChat(selectedBook.ownerName, selectedBook.title);
+            selectBook(null);
+          }}
           onToggleLike={() => toggleLikeBook(selectedBook)}
+          onToggleAvailability={(isExchangeable, isLendable) => {
+            updateBookAvailability(selectedBook.id, isExchangeable, isLendable);
+          }}
+        />
+      )}
+
+      {selectedChatId && (
+        <ChatScreenOverlay
+          chatId={selectedChatId}
+          onDismiss={() => selectChat(null)}
         />
       )}
 
@@ -247,7 +356,6 @@ export default function HomeScreen() {
           onDismiss={() => selectReader(null)}
           onChatClick={() => {
             startBookChat(selectedReader.name, 'your collection');
-            router.push('/(tabs)/messages');
           }}
         />
       )}
@@ -542,5 +650,77 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  searchResultsContainer: {
+    paddingTop: 14,
+  },
+  searchHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 6,
+  },
+  searchSectionTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.primaryText,
+  },
+  searchSubtitle: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    marginTop: 2,
+  },
+  clearSearchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(163, 74, 61, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  clearSearchBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: Colors.alertAccent,
+    marginLeft: 4,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    marginHorizontal: 20,
+    backgroundColor: Colors.cardBg,
+    borderRadius: 20,
+    marginTop: 14,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(193, 140, 93, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.primaryText,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: Colors.secondaryText,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  cardsList: {
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
 });

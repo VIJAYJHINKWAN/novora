@@ -32,7 +32,9 @@ interface AddBookModalProps {
     genre: string,
     summary: string,
     classification: string,
-    coverUrl?: string
+    coverUrl?: string,
+    isExchangeable?: boolean,
+    isLendable?: boolean
   ) => void;
 }
 
@@ -45,6 +47,8 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
   const [genre, setGenre] = useState('Indian Lit');
   const [summary, setSummary] = useState('');
   const [classification, setClassification] = useState('Owned');
+  const [isExchangeable, setIsExchangeable] = useState(true);
+  const [isLendable, setIsLendable] = useState(true);
   const [coverUrl, setCoverUrl] = useState('');
 
   // Autocomplete suggestions state
@@ -64,7 +68,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
   const [showCustomGenreInput, setShowCustomGenreInput] = useState(false);
   const [customGenreText, setCustomGenreText] = useState('');
 
-  const classifications = ['Owned', 'Available Exchange', 'Available Lending', 'Wishlist', 'Read'];
+  const classifications = ['Owned', 'Read', 'Currently Reading', 'Wishlist'];
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Authors suggested based on current title search results
@@ -226,7 +230,16 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
 
   const handleSubmit = () => {
     if (!title.trim() || !author.trim()) return;
-    onAddBook(title.trim(), author.trim(), genre, summary.trim(), classification, coverUrl.trim() || undefined);
+    onAddBook(
+      title.trim(),
+      author.trim(),
+      genre,
+      summary.trim(),
+      classification,
+      coverUrl.trim() || undefined,
+      isExchangeable,
+      isLendable
+    );
     onDismiss();
   };
 
@@ -521,8 +534,142 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
               </View>
             )}
 
+            {/* Community Availability Settings */}
+            <Text style={styles.sectionLabel}>Community Availability (Decide Status)</Text>
+            <Text style={styles.sectionHelpText}>
+              Decide whether this book will be available for swap or borrow by other community readers:
+            </Text>
+
+            {/* Quick Preset Buttons */}
+            <View style={styles.presetButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.presetBtn,
+                  isExchangeable && isLendable && styles.presetBtnActive,
+                ]}
+                onPress={() => {
+                  setIsExchangeable(true);
+                  setIsLendable(true);
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.presetBtnText, isExchangeable && isLendable && styles.presetBtnTextActive]}>
+                  ⇄ & 📖 Swap & Borrow
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.presetBtn,
+                  isExchangeable && !isLendable && styles.presetBtnActive,
+                ]}
+                onPress={() => {
+                  setIsExchangeable(true);
+                  setIsLendable(false);
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.presetBtnText, isExchangeable && !isLendable && styles.presetBtnTextActive]}>
+                  ⇄ Swap Only
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.presetBtn,
+                  !isExchangeable && isLendable && styles.presetBtnActive,
+                ]}
+                onPress={() => {
+                  setIsExchangeable(false);
+                  setIsLendable(true);
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.presetBtnText, !isExchangeable && isLendable && styles.presetBtnTextActive]}>
+                  📖 Borrow Only
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.presetBtn,
+                  !isExchangeable && !isLendable && styles.presetBtnActiveAlert,
+                ]}
+                onPress={() => {
+                  setIsExchangeable(false);
+                  setIsLendable(false);
+                }}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.presetBtnText, !isExchangeable && !isLendable && styles.presetBtnTextActiveAlert]}>
+                  🔒 Unavailable
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Interactive Availability Toggle Cards */}
+            <View style={styles.availabilityCardsRow}>
+              {/* Swap Toggle Card */}
+              <TouchableOpacity
+                style={[
+                  styles.availCard,
+                  isExchangeable ? styles.availCardActiveSwap : styles.availCardInactive,
+                ]}
+                onPress={() => setIsExchangeable(!isExchangeable)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.availCardHeader}>
+                  <View style={[styles.availIconCircle, isExchangeable && styles.availIconCircleSwap]}>
+                    <Ionicons
+                      name="swap-horizontal"
+                      size={18}
+                      color={isExchangeable ? Colors.successAccent : Colors.secondaryText}
+                    />
+                  </View>
+                  <View style={[styles.toggleBadge, isExchangeable ? styles.toggleBadgeOn : styles.toggleBadgeOff]}>
+                    <Text style={[styles.toggleBadgeText, isExchangeable ? styles.toggleBadgeTextOn : styles.toggleBadgeTextOff]}>
+                      {isExchangeable ? 'SWAP: ON' : 'SWAP: OFF'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.availCardTitle}>Available for Swap</Text>
+                <Text style={styles.availCardDesc}>
+                  Other readers can offer an exchange for this book.
+                </Text>
+              </TouchableOpacity>
+
+              {/* Borrow Toggle Card */}
+              <TouchableOpacity
+                style={[
+                  styles.availCard,
+                  isLendable ? styles.availCardActiveBorrow : styles.availCardInactive,
+                ]}
+                onPress={() => setIsLendable(!isLendable)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.availCardHeader}>
+                  <View style={[styles.availIconCircle, isLendable && styles.availIconCircleBorrow]}>
+                    <Ionicons
+                      name="book-outline"
+                      size={18}
+                      color={isLendable ? Colors.primaryAccent : Colors.secondaryText}
+                    />
+                  </View>
+                  <View style={[styles.toggleBadge, isLendable ? styles.toggleBadgeOnAccent : styles.toggleBadgeOff]}>
+                    <Text style={[styles.toggleBadgeText, isLendable ? styles.toggleBadgeTextOnAccent : styles.toggleBadgeTextOff]}>
+                      {isLendable ? 'BORROW: ON' : 'BORROW: OFF'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.availCardTitle}>Available to Borrow</Text>
+                <Text style={styles.availCardDesc}>
+                  Other readers can request to borrow this book.
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Shelf Status */}
-            <Text style={styles.sectionLabel}>Shelf Status</Text>
+            <Text style={styles.sectionLabel}>Personal Shelf Status</Text>
             <View style={styles.chipsRow}>
               {classifications.map(c => (
                 <TouchableOpacity
@@ -986,5 +1133,128 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  sectionHelpText: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    marginBottom: 10,
+    marginTop: -4,
+    lineHeight: 16,
+  },
+  presetButtonsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+    gap: 8,
+  },
+  presetBtn: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  presetBtnActive: {
+    backgroundColor: Colors.primaryAccent,
+    borderColor: Colors.primaryAccent,
+  },
+  presetBtnActiveAlert: {
+    backgroundColor: 'rgba(163, 74, 61, 0.12)',
+    borderColor: Colors.alertAccent,
+  },
+  presetBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  presetBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  presetBtnTextActiveAlert: {
+    color: Colors.alertAccent,
+  },
+  availabilityCardsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  availCard: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+  },
+  availCardActiveSwap: {
+    backgroundColor: 'rgba(112, 138, 129, 0.08)',
+    borderColor: Colors.successAccent,
+  },
+  availCardActiveBorrow: {
+    backgroundColor: 'rgba(193, 140, 93, 0.08)',
+    borderColor: Colors.primaryAccent,
+  },
+  availCardInactive: {
+    backgroundColor: Colors.cardBg,
+    borderColor: Colors.border,
+    opacity: 0.8,
+  },
+  availCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  availIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  availIconCircleSwap: {
+    backgroundColor: 'rgba(112, 138, 129, 0.15)',
+  },
+  availIconCircleBorrow: {
+    backgroundColor: 'rgba(193, 140, 93, 0.15)',
+  },
+  toggleBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  toggleBadgeOn: {
+    backgroundColor: Colors.successAccent,
+  },
+  toggleBadgeOnAccent: {
+    backgroundColor: Colors.primaryAccent,
+  },
+  toggleBadgeOff: {
+    backgroundColor: 'rgba(85, 85, 85, 0.12)',
+  },
+  toggleBadgeText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  toggleBadgeTextOn: {
+    color: '#FFFFFF',
+  },
+  toggleBadgeTextOnAccent: {
+    color: '#FFFFFF',
+  },
+  toggleBadgeTextOff: {
+    color: Colors.secondaryText,
+  },
+  availCardTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: Colors.primaryText,
+    marginBottom: 4,
+  },
+  availCardDesc: {
+    fontSize: 10.5,
+    color: Colors.secondaryText,
+    lineHeight: 14,
   },
 });

@@ -92,6 +92,12 @@ try {
         exit();
     }
 
+    if (preg_match('#^/api/books/(\d+)/availability$#', $uri, $m) && $method === 'PUT') {
+        $userId = AuthMiddleware::requireAuth();
+        BookController::updateAvailability($userId, (int) $m[1], $body);
+        exit();
+    }
+
     // ---------- Events ----------
     if ($uri === '/api/events' && $method === 'GET') {
         $userId = AuthMiddleware::requireAuth();

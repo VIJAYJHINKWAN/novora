@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Book, Reader, Event, ChatMessage, ReadingStory, UserProfile, NavigationTab, AppScreen } from '../types';
 import { ApiService } from '../services/api';
+import { StorageService } from '../services/storage';
 
 interface AppContextType {
   currentScreen: AppScreen;
@@ -22,6 +23,10 @@ interface AppContextType {
 
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  bookSearchQuery: string;
+  setBookSearchQuery: (query: string) => void;
+  bookAvailabilityFilter: 'ALL' | 'SWAP' | 'BORROW' | 'OTHERS';
+  setBookAvailabilityFilter: (filter: 'ALL' | 'SWAP' | 'BORROW' | 'OTHERS') => void;
   selectedGenreFilter: string;
   setGenreFilter: (genre: string) => void;
   selectedEventCategory: string;
@@ -43,7 +48,17 @@ interface AppContextType {
   toggleLikeStory: (storyId: number) => void;
 
   toggleLikeBook: (book: Book) => void;
-  addNewBook: (title: string, author: string, genre: string, summary: string, classification: string, coverUrl?: string) => void;
+  addNewBook: (
+    title: string,
+    author: string,
+    genre: string,
+    summary: string,
+    classification: string,
+    coverUrl?: string,
+    isExchangeable?: boolean,
+    isLendable?: boolean
+  ) => void;
+  updateBookAvailability: (bookId: number, isExchangeable: boolean, isLendable: boolean) => Promise<void>;
 
   toggleEventRsvp: (event: Event) => void;
   addNewEvent: (
@@ -60,6 +75,7 @@ interface AppContextType {
   getRecentChats: () => { chatId: string; lastMessage: ChatMessage }[];
   sendChatMessage: (chatId: string, text: string, isExchangeCard?: boolean, exchangeBook?: string, exchangeStatus?: string) => void;
   createExchangeRequest: (book: Book) => void;
+  createBorrowRequest: (book: Book) => void;
   updateExchangeStatus: (message: ChatMessage, newStatus: string) => void;
   startBookChat: (readerName: string, bookTitle: string) => void;
 
@@ -82,6 +98,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [bookSearchQuery, setBookSearchQuery] = useState<string>('');
+  const [bookAvailabilityFilter, setBookAvailabilityFilter] = useState<'ALL' | 'SWAP' | 'BORROW' | 'OTHERS'>('ALL');
   const [selectedGenreFilter, setSelectedGenreFilter] = useState<string>('All');
   const [selectedEventCategory, setSelectedEventCategory] = useState<string>('All');
 
@@ -170,7 +188,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }));
         setMessages(mappedMsgs);
       } catch (e) {}
-    } catch (e) {}
+    } catch (e) {
+      try {
+        const localBooks = await StorageService.getBooks();
+        setBooks(localBooks);
+        const localReaders = await StorageService.getReaders();
+        setReaders(localReaders);
+        const localEvents = await StorageService.getEvents();
+        setEvents(localEvents);
+        const localStories = await StorageService.getStories();
+        setReadingStories(localStories);
+      } catch (err) {}
+    }
   };
 
   useEffect(() => {
@@ -232,10 +261,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     genre: string,
     summary: string,
     classification: string,
-    coverUrl?: string
+    coverUrl?: string,
+    isExchangeableParam?: boolean,
+    isLendableParam?: boolean
   ) => {
-    const isExchangeable = classification === "Available Exchange";
-    const isLendable = classification === "Available Lending";
+    // If user explicitly chose availability, use it; otherwise default to true for swap and borrow
+    const isExchangeable = isExchangeableParam !== undefined
+      ? isExchangeableParam
+      : (classification !== "Wishlist" && classification !== "Read");
+    const isLendable = isLendableParam !== undefined
+      ? isLendableParam
+      : (classification !== "Wishlist" && classification !== "Read");
+
     try {
       await ApiService.addBook(title, author, genre, summary, isExchangeable, isLendable, coverUrl);
       const booksRes = await ApiService.getBooks();
@@ -251,7 +288,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         ownerName: userProfile.name || 'You',
         ownerDistance: '0.0 km away',
         ownerRating: userProfile.readingScore || 5.0,
-        isOwned: classification === 'Owned',
+        isOwned: classification !== 'Wishlist',
         isRead: classification === 'Read',
         isWishlist: classification === 'Wishlist',
         isExchangeable,
@@ -262,7 +299,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isLiked: false,
       };
       setBooks(prev => [newBook, ...prev]);
+      try {
+        const stored = await StorageService.getBooks();
+        await StorageService.saveBooks([newBook, ...stored]);
+      } catch (err) {}
     }
+  };
+
+  const updateBookAvailability = async (
+    bookId: number,
+    isExchangeable: boolean,
+    isLendable: boolean
+  ) => {
+    setBooks(prev =>
+      prev.map(b => (b.id === bookId ? { ...b, isExchangeable, isLendable } : b))
+    );
+    if (selectedBook?.id === bookId) {
+      setSelectedBook(prev => (prev ? { ...prev, isExchangeable, isLendable } : null));
+    }
+
+    try {
+      await ApiService.updateBookAvailability(bookId, isExchangeable, isLendable);
+    } catch (e) {}
+
+    try {
+      const stored = await StorageService.getBooks();
+      const updated = stored.map(b =>
+        b.id === bookId ? { ...b, isExchangeable, isLendable } : b
+      );
+      await StorageService.saveBooks(updated);
+    } catch (err) {}
   };
 
   const toggleEventRsvp = async (event: Event) => {
@@ -330,7 +396,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const createExchangeRequest = (book: Book) => {
     sendChatMessage(book.ownerName, `Initiated an exchange request for '${book.title}'.`, true, book.title, "Requested");
-    setSelectedBook({ ...book, isWishlist: true });
+    setSelectedBook(prev => prev ? { ...prev, isWishlist: true } : null);
+    setSelectedChatId(book.ownerName);
+  };
+
+  const createBorrowRequest = (book: Book) => {
+    sendChatMessage(
+      book.ownerName,
+      `Hi ${book.ownerName}! I would like to borrow '${book.title}'. Could we arrange a lending?`,
+      true,
+      book.title,
+      "Requested"
+    );
+    setSelectedBook(prev => prev ? { ...prev, isWishlist: true } : null);
+    setSelectedChatId(book.ownerName);
   };
 
   const updateExchangeStatus = (message: ChatMessage, newStatus: string) => {
@@ -338,7 +417,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const startBookChat = (readerName: string, bookTitle: string) => {
-    const introMsg = `Hi ${readerName}! I noticed '${bookTitle}' in your collection and would love to chat about it or arrange a swap.`;
+    const introMsg = `Hi ${readerName}! I noticed '${bookTitle}' in your collection and would love to chat about it or arrange a swap / borrow.`;
     sendChatMessage(readerName, introMsg);
     setSelectedReader(null);
     setSelectedBook(null);
@@ -380,13 +459,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         currentScreen, navigateTo, selectedTab, selectTab,
         selectedBook, selectBook, selectedReader, selectReader, selectedChatId, selectChat,
         notificationCount, showNotifications, setNotificationVisible,
-        searchQuery, setSearchQuery, selectedGenreFilter, setGenreFilter: setSelectedGenreFilter,
+        searchQuery, setSearchQuery,
+        bookSearchQuery, setBookSearchQuery,
+        bookAvailabilityFilter, setBookAvailabilityFilter,
+        selectedGenreFilter, setGenreFilter: setSelectedGenreFilter,
         selectedEventCategory, setEventCategory: setSelectedEventCategory,
         books, readers, events, messages, readingStories, userProfile,
         activeStoryIndex, openStoryViewer, closeStoryViewer,
         showCreateStoryDialog, setShowCreateStoryDialog, addStory, toggleLikeStory,
-        toggleLikeBook, addNewBook, toggleEventRsvp,
+        toggleLikeBook, addNewBook, updateBookAvailability, toggleEventRsvp,
         getMessagesForChat, getRecentChats, sendChatMessage, createExchangeRequest,
+        createBorrowRequest,
         updateExchangeStatus, startBookChat, updateUserProfile, addNewEvent,
         refreshAppData: loadAppData, signOut
       }}

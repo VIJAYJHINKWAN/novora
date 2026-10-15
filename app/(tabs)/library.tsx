@@ -12,9 +12,21 @@ import { useApp } from '../../context/AppContext';
 import { BookCover } from '../../components/BookCover';
 import { PageTurnBadge } from '../../components/PageTurnBadge';
 import { BookDetailsSheet } from '../../components/modals/BookDetailsSheet';
+import { ChatScreenOverlay } from '../../components/modals/ChatScreenOverlay';
 
 export default function LibraryScreen() {
-  const { books, selectedBook, selectBook, toggleLikeBook, createExchangeRequest } = useApp();
+  const {
+    books,
+    selectedBook,
+    selectBook,
+    toggleLikeBook,
+    createExchangeRequest,
+    createBorrowRequest,
+    startBookChat,
+    selectedChatId,
+    selectChat,
+    updateBookAvailability,
+  } = useApp();
   const [activeFilter, setActiveFilter] = useState('All');
 
   const filters = ['All', 'My Shelf', 'Read', 'Wishlist', 'Exchangeable', 'Lendable'];
@@ -90,7 +102,25 @@ export default function LibraryScreen() {
             createExchangeRequest(selectedBook);
             selectBook(null);
           }}
+          onBorrowRequest={() => {
+            createBorrowRequest(selectedBook);
+            selectBook(null);
+          }}
+          onMessageOwner={() => {
+            startBookChat(selectedBook.ownerName, selectedBook.title);
+            selectBook(null);
+          }}
           onToggleLike={() => toggleLikeBook(selectedBook)}
+          onToggleAvailability={(isExchangeable, isLendable) => {
+            updateBookAvailability(selectedBook.id, isExchangeable, isLendable);
+          }}
+        />
+      )}
+
+      {selectedChatId && (
+        <ChatScreenOverlay
+          chatId={selectedChatId}
+          onDismiss={() => selectChat(null)}
         />
       )}
     </SafeAreaView>
