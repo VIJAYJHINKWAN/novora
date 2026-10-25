@@ -1,17 +1,30 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  useWindowDimensions,
+  LayoutChangeEvent,
+} from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { Colors } from '../../constants/theme';
 
-const TAB_CONFIG: Record<string, { label: string; activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap }> = {
+const TAB_CONFIG: Record<
+  string,
+  {
+    label: string;
+    activeIcon: keyof typeof Ionicons.glyphMap;
+    inactiveIcon: keyof typeof Ionicons.glyphMap;
+  }
+> = {
   index: { label: 'Home', activeIcon: 'home', inactiveIcon: 'home-outline' },
   discover: { label: 'Discover', activeIcon: 'compass', inactiveIcon: 'compass-outline' },
   library: { label: 'Library', activeIcon: 'library', inactiveIcon: 'library-outline' },
@@ -21,7 +34,30 @@ const TAB_CONFIG: Record<string, { label: string; activeIcon: keyof typeof Ionic
 
 function CustomAnimatedFloatingTabBar({ state, descriptors, navigation }: any) {
   const activeIndex = state.index;
-  const totalTabs = state.routes.length;
+  const totalTabs = state.routes.length || 5;
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Responsive container width: capped at 560 on web/desktop, scales smoothly down on mobile
+  const containerMargin = 16;
+  const maxContainerWidth = 560;
+  const initialContainerWidth = Math.min(Math.max(windowWidth - containerMargin * 2, 280), maxContainerWidth);
+  const [containerWidth, setContainerWidth] = useState(initialContainerWidth);
+
+  // Keep containerWidth in sync when window dimensions change
+  useEffect(() => {
+    const nextWidth = Math.min(Math.max(windowWidth - containerMargin * 2, 280), maxContainerWidth);
+    setContainerWidth(nextWidth);
+  }, [windowWidth]);
+
+  const onContainerLayout = (e: LayoutChangeEvent) => {
+    const layoutWidth = e.nativeEvent.layout.width;
+    if (layoutWidth > 0 && Math.abs(layoutWidth - containerWidth) > 1) {
+      setContainerWidth(layoutWidth);
+    }
+  };
+
+  // Tab width accounts for 6px padding on left & right (total 12px)
+  const tabWidth = Math.max(0, (containerWidth - 12) / totalTabs);
 
   // Shared value for smooth sliding active pill
   const activeTabPosition = useSharedValue(activeIndex);
@@ -34,22 +70,18 @@ function CustomAnimatedFloatingTabBar({ state, descriptors, navigation }: any) {
     });
   }, [activeIndex]);
 
-  // Screen width minus container padding & margins divided by total tabs
-  const containerMargin = 16;
-  const screenWidth = Dimensions.get('window').width;
-  const tabWidth = (screenWidth - containerMargin * 2 - 12) / totalTabs;
-
   const slidingPillStyle = useAnimatedStyle(() => {
     return {
+      width: tabWidth,
       transform: [{ translateX: activeTabPosition.value * tabWidth }],
     };
   });
 
   return (
-    <View style={styles.floatingWrapper}>
-      <View style={styles.floatingContainer}>
+    <View style={styles.floatingWrapper} pointerEvents="box-none">
+      <View style={styles.floatingContainer} onLayout={onContainerLayout}>
         {/* Animated Sliding Pill Background */}
-        <Animated.View style={[styles.slidingPill, { width: tabWidth }, slidingPillStyle]} />
+        <Animated.View style={[styles.slidingPill, slidingPillStyle]} />
 
         {/* Tab Buttons */}
         {state.routes.map((route: any, index: number) => {
@@ -137,6 +169,8 @@ function TabItem({
           { color: isFocused ? Colors.primaryAccent : 'rgba(85, 85, 85, 0.65)' },
           isFocused && styles.tabLabelActive,
         ]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
       >
         {label}
       </Text>
@@ -165,11 +199,15 @@ const styles = StyleSheet.create({
   floatingWrapper: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 24 : 16,
-    left: 16,
-    right: 16,
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    paddingHorizontal: 16,
+    zIndex: 1000,
   },
   floatingContainer: {
+    width: '100%',
+    maxWidth: 560,
     flexDirection: 'row',
     height: 64,
     borderRadius: 32,
@@ -195,10 +233,13 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
+    minWidth: 0,
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 2,
     zIndex: 2,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any, userSelect: 'none' as any } : {}),
   },
   iconWrapper: {
     alignItems: 'center',
@@ -219,6 +260,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
     letterSpacing: 0.2,
+    textAlign: 'center',
+    width: '100%',
   },
   tabLabelActive: {
     fontWeight: 'bold',

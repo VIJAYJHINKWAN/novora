@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
+  SharedValue,
   useSharedValue,
   useAnimatedStyle,
   useAnimatedScrollHandler,
@@ -66,7 +67,7 @@ const STEPS_DATA: StepData[] = [
 interface OnboardingItemProps {
   item: StepData;
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
 }
 
 const OnboardingItem: React.FC<OnboardingItemProps> = ({ item, index, scrollX }) => {
@@ -139,7 +140,7 @@ const OnboardingItem: React.FC<OnboardingItemProps> = ({ item, index, scrollX })
 
 interface DotIndicatorProps {
   index: number;
-  scrollX: Animated.SharedValue<number>;
+  scrollX: SharedValue<number>;
 }
 
 const DotIndicator: React.FC<DotIndicatorProps> = ({ index, scrollX }) => {

@@ -25,19 +25,37 @@ export const BookCover: React.FC<BookCoverProps> = ({ title, author, coverId = 1
   const bgStyle = { backgroundColor: gradient[0] };
   const showImage = Boolean(normalizedCoverUrl && !imageError);
 
+  const flatStyle = StyleSheet.flatten(style) || {};
+  const borderRadius = flatStyle.borderRadius !== undefined ? flatStyle.borderRadius : 8;
+
   return (
-    <View style={[styles.coverContainer, bgStyle, style]}>
+    <View
+      style={[
+        styles.coverContainer,
+        { borderRadius },
+        showImage ? styles.imageContainer : [bgStyle, styles.textContainer],
+        style,
+      ]}
+    >
       {showImage ? (
         <>
           <Image
             key={normalizedCoverUrl}
             source={{ uri: normalizedCoverUrl! }}
-            style={styles.realCoverImage}
+            style={[styles.realCoverImage, { borderRadius }]}
             resizeMode="cover"
             onError={() => setImageError(true)}
           />
           {/* Subtle real-book left spine shadow and right edge highlight */}
-          <View style={styles.spineShadowOverlay} />
+          <View
+            style={[
+              styles.spineShadowOverlay,
+              {
+                borderTopLeftRadius: borderRadius,
+                borderBottomLeftRadius: borderRadius,
+              },
+            ]}
+          />
         </>
       ) : (
         <>
@@ -67,10 +85,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.12)',
-    padding: 10,
-    justifyContent: 'space-between',
     position: 'relative',
     overflow: 'hidden',
+    backgroundColor: '#1E1E24',
+  },
+  textContainer: {
+    padding: 10,
+    justifyContent: 'space-between',
+  },
+  imageContainer: {
+    padding: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#1E1E24',
   },
   realCoverImage: {

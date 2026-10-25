@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Modal, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Modal, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Book } from '../../types';
 import { Colors, Fonts } from '../../constants/theme';
@@ -7,6 +7,7 @@ import { BookCover } from '../BookCover';
 import { PageTurnButton } from '../PageTurnButton';
 import { PageTurnBadge } from '../PageTurnBadge';
 import { UserAvatar } from '../UserAvatar';
+import { DevicePhotoPickerModal } from './DevicePhotoPickerModal';
 
 interface BookDetailsSheetProps {
   book: Book;
@@ -16,6 +17,8 @@ interface BookDetailsSheetProps {
   onMessageOwner?: () => void;
   onToggleLike?: () => void;
   onToggleAvailability?: (isExchangeable: boolean, isLendable: boolean) => void;
+  onUpdateCover?: (coverUrl: string) => void;
+  onDeleteBook?: (book: Book) => void;
 }
 
 export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
@@ -26,10 +29,21 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
   onMessageOwner,
   onToggleLike,
   onToggleAvailability,
+  onUpdateCover,
+  onDeleteBook,
 }) => {
+  const [showPhotoPicker, setShowPhotoPicker] = useState(false);
+
+  const isOwnedByUser = Boolean(
+    book.isOwned ||
+    book.ownerName === 'You' ||
+    book.ownerName === 'Me'
+  );
+
   return (
-    <Modal animationType="slide" transparent visible onRequestClose={onDismiss}>
-      <View style={styles.overlay}>
+    <>
+      <Modal animationType="slide" transparent visible onRequestClose={onDismiss}>
+        <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onDismiss} />
         <View style={styles.sheetContainer}>
           <View style={styles.dragHandle} />
@@ -63,6 +77,19 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
                     <Text style={styles.likeCount}>{book.likesCount} readers liked</Text>
                   </TouchableOpacity>
                 )}
+
+                {isOwnedByUser && onUpdateCover && (
+                  <TouchableOpacity
+                    style={styles.changeCoverBtn}
+                    onPress={() => setShowPhotoPicker(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="camera-outline" size={13} color={Colors.primaryAccent} />
+                    <Text style={styles.changeCoverBtnText}>
+                      {book.coverUrl ? 'Change Cover Photo' : 'Upload Cover Photo'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 
@@ -70,11 +97,11 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
             <View style={styles.ownerCard}>
               <UserAvatar name={book.ownerName} size={46} />
               <View style={styles.ownerInfo}>
-                <Text style={styles.ownerLabel}>{book.isOwned ? 'YOUR PERSONAL SHELF' : 'UPLOADED BY'}</Text>
-                <Text style={styles.ownerName}>{book.ownerName} {book.isOwned ? '(You)' : ''}</Text>
+                <Text style={styles.ownerLabel}>{isOwnedByUser ? 'YOUR PERSONAL SHELF' : 'UPLOADED BY'}</Text>
+                <Text style={styles.ownerName}>{book.ownerName} {isOwnedByUser ? '(You)' : ''}</Text>
                 <Text style={styles.ownerDistance}>📍 {book.ownerDistance} • {book.ownerRating}★ Owner Rating</Text>
               </View>
-              {!book.isOwned && onMessageOwner && (
+              {!isOwnedByUser && onMessageOwner && (
                 <TouchableOpacity
                   style={styles.ownerMessageBtn}
                   onPress={onMessageOwner}
@@ -113,7 +140,7 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
                 </View>
               )}
 
-              {book.isOwned && (
+              {isOwnedByUser && (
                 <View style={[styles.statusChip, styles.statusChipNeutral]}>
                   <Ionicons name="bookmark-outline" size={14} color={Colors.secondaryText} />
                   <Text style={styles.statusChipNeutralText}>Personal Shelf</Text>
@@ -122,7 +149,7 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
             </View>
 
             {/* Owner Availability Decision Toggles */}
-            {book.isOwned && onToggleAvailability && (
+            {isOwnedByUser && onToggleAvailability && (
               <View style={styles.ownerManageBox}>
                 <Text style={styles.ownerManageHeading}>Your Book Availability Controls</Text>
                 <Text style={styles.ownerManageSubtext}>
@@ -187,7 +214,7 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
 
             {/* CTA Action Buttons */}
             <View style={styles.ctaContainer}>
-              {!book.isOwned ? (
+              {!isOwnedByUser ? (
                 <>
                   {book.isExchangeable && onExchangeRequest && (
                     <PageTurnButton
@@ -257,6 +284,20 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
                       )}
                     </View>
                   )}
+
+                  {isOwnedByUser && onDeleteBook && (
+                    <TouchableOpacity
+                      style={styles.deleteBookBtn}
+                      onPress={() => {
+                        onDismiss();
+                        onDeleteBook(book);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={Colors.alertAccent} />
+                      <Text style={styles.deleteBookBtnText}>Delete Book from Shelf & Community</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </View>
@@ -264,6 +305,14 @@ export const BookDetailsSheet: React.FC<BookDetailsSheetProps> = ({
         </View>
       </View>
     </Modal>
+    <DevicePhotoPickerModal
+      visible={showPhotoPicker}
+      onDismiss={() => setShowPhotoPicker(false)}
+      onSelectPhoto={(photoUri) => {
+        onUpdateCover?.(photoUri);
+      }}
+    />
+  </>
   );
 };
 
@@ -623,6 +672,40 @@ const styles = StyleSheet.create({
     color: Colors.alertAccent,
     fontSize: 12,
     fontWeight: '600',
+    marginLeft: 4,
+  },
+  deleteBookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(163, 74, 61, 0.08)',
+    borderRadius: 20,
+    paddingVertical: 12,
+    marginTop: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(163, 74, 61, 0.35)',
+    gap: 6,
+  },
+  deleteBookBtnText: {
+    color: Colors.alertAccent,
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  changeCoverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(193, 140, 93, 0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  changeCoverBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: Colors.primaryAccent,
     marginLeft: 4,
   },
 });

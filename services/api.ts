@@ -41,6 +41,17 @@ export const ApiService = {
       body: JSON.stringify({ isExchangeable, isLendable }),
     }),
 
+  updateBookCover: (bookId: number, coverUrl: string) =>
+    authedFetch(`/api/books/${bookId}/availability`, {
+      method: 'PUT',
+      body: JSON.stringify({ coverUrl }),
+    }),
+
+  deleteBook: (bookId: number) =>
+    authedFetch(`/api/books/${bookId}`, {
+      method: 'DELETE',
+    }),
+
   // Readers
   getReaders: () => authedFetch('/api/readers'),
 

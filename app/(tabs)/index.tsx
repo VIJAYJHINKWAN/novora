@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -25,6 +27,7 @@ import { NearbyMapOverlay } from '../../components/NearbyMapOverlay';
 import { BookSearchBar } from '../../components/BookSearchBar';
 import { BookSearchResultCard } from '../../components/BookSearchResultCard';
 import { ChatScreenOverlay } from '../../components/modals/ChatScreenOverlay';
+import { SlideIndicatorScrollView } from '../../components/SlideIndicatorScrollView';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -50,6 +53,10 @@ export default function HomeScreen() {
     toggleLikeBook,
     addNewBook,
     updateBookAvailability,
+    updateBookCover,
+    deleteBook,
+    promptDeleteBook,
+    refreshAppData,
     createExchangeRequest,
     createBorrowRequest,
     activeStoryIndex,
@@ -64,6 +71,22 @@ export default function HomeScreen() {
 
   const [showAddBook, setShowAddBook] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAppData();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleDeleteBook = (book: any) => {
+    if (book.isOwned) {
+      promptDeleteBook(book);
+    }
+  };
 
   const defaultGenres = [
     'All',
@@ -143,7 +166,18 @@ export default function HomeScreen() {
         isSearching={isSearchActive}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primaryAccent]}
+            tintColor={Colors.primaryAccent}
+          />
+        }
+      >
         {isSearchActive ? (
           /* Search Results View */
           <View style={styles.searchResultsContainer}>
@@ -200,6 +234,7 @@ export default function HomeScreen() {
                     onBorrow={() => createBorrowRequest(book)}
                     onMessage={() => startBookChat(book.ownerName, book.title)}
                     onToggleLike={() => toggleLikeBook(book)}
+                    onDelete={book.isOwned ? () => handleDeleteBook(book) : undefined}
                   />
                 ))}
               </View>
@@ -213,7 +248,10 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>Reading Notes & Spotlights</Text>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.storiesContainer}>
+            <SlideIndicatorScrollView
+              style={styles.storiesContainer}
+              contentContainerStyle={{ paddingRight: 20 }}
+            >
               {/* Add Story Button */}
               <TouchableOpacity
                 style={styles.addStoryItem}
@@ -240,10 +278,13 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </SlideIndicatorScrollView>
 
             {/* Genre Filter Chips */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
+            <SlideIndicatorScrollView
+              style={styles.chipsContainer}
+              contentContainerStyle={{ paddingRight: 24 }}
+            >
               {genres.map(g => (
                 <TouchableOpacity
                   key={g}
@@ -255,7 +296,7 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </SlideIndicatorScrollView>
 
             {/* Featured Readers Nearby */}
             <View style={styles.sectionHeaderRow}>
@@ -266,7 +307,10 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.readersContainer}>
+            <SlideIndicatorScrollView
+              style={styles.readersContainer}
+              contentContainerStyle={{ paddingRight: 20 }}
+            >
               {readers.map(reader => (
                 <TouchableOpacity
                   key={reader.id}
@@ -286,7 +330,7 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
+            </SlideIndicatorScrollView>
 
             {/* Community Shelf Feed */}
             <View style={styles.sectionHeader}>
@@ -303,6 +347,7 @@ export default function HomeScreen() {
                   onBorrow={() => createBorrowRequest(book)}
                   onMessage={() => startBookChat(book.ownerName, book.title)}
                   onToggleLike={() => toggleLikeBook(book)}
+                  onDelete={book.isOwned ? () => handleDeleteBook(book) : undefined}
                 />
               ))}
             </View>
@@ -337,9 +382,13 @@ export default function HomeScreen() {
             selectBook(null);
           }}
           onToggleLike={() => toggleLikeBook(selectedBook)}
-          onToggleAvailability={(isExchangeable, isLendable) => {
+          onToggleAvailability={selectedBook.isOwned ? (isExchangeable, isLendable) => {
             updateBookAvailability(selectedBook.id, isExchangeable, isLendable);
-          }}
+          } : undefined}
+          onUpdateCover={selectedBook.isOwned ? (coverUrl) => {
+            updateBookCover(selectedBook.id, coverUrl);
+          } : undefined}
+          onDeleteBook={selectedBook.isOwned ? promptDeleteBook : undefined}
         />
       )}
 
@@ -440,7 +489,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContent: {
-    paddingBottom: 80,
+    paddingBottom: 100,
   },
   sectionHeader: {
     paddingHorizontal: 20,

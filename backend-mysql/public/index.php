@@ -69,8 +69,9 @@ try {
 
     // ---------- Protected routes (require a valid JWT) ----------
     if ($uri === '/api/books' && $method === 'GET') {
-        $userId = AuthMiddleware::requireAuth();
-        BookController::list($userId);
+        $token = \App\Auth\JwtService::getTokenFromRequest();
+        $userId = $token ? \App\Auth\JwtService::verifyToken($token) : null;
+        BookController::list($userId ?? 0);
         exit();
     }
 
@@ -95,6 +96,12 @@ try {
     if (preg_match('#^/api/books/(\d+)/availability$#', $uri, $m) && $method === 'PUT') {
         $userId = AuthMiddleware::requireAuth();
         BookController::updateAvailability($userId, (int) $m[1], $body);
+        exit();
+    }
+
+    if (preg_match('#^/api/books/(\d+)$#', $uri, $m) && $method === 'DELETE') {
+        $userId = AuthMiddleware::requireAuth();
+        BookController::delete($userId, (int) $m[1]);
         exit();
     }
 

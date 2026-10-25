@@ -376,6 +376,7 @@ export const initialProfile: UserProfile = {
   bio: "Bibliophile & software architect based in Indiranagar, Bengaluru. Passionate about South Asian literature, filter coffee, essays, and collecting rare paperbacks. Always open for book swaps over chai.",
   location: "Indiranagar, Bengaluru",
   readingScore: 880,
+  points: 120,
   stats: "Owned: 24 | Read: 42 | Wishlist: 15",
   genres: "Indian Lit, Modern Fiction, Essays, Poetry",
   goals: "Read 36 books & host 6 local Bengaluru book exchanges in 2026",
@@ -397,6 +398,16 @@ export const StorageService = {
   },
   async saveBooks(books: Book[]): Promise<void> {
     await AsyncStorage.setItem(KEYS.BOOKS, JSON.stringify(books));
+  },
+  async deleteBook(bookId: number): Promise<void> {
+    const books = await this.getBooks();
+    const updated = books.filter(b => b.id !== bookId);
+    await this.saveBooks(updated);
+  },
+  async updateBookCover(bookId: number, coverUrl: string): Promise<void> {
+    const books = await this.getBooks();
+    const updated = books.map(b => b.id === bookId ? { ...b, coverUrl } : b);
+    await this.saveBooks(updated);
   },
 
   async getReaders(): Promise<Reader[]> {

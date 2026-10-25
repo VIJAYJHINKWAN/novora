@@ -91,7 +91,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scrollContent: {
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 100,
     paddingHorizontal: 16,
   },
   chatRow: {

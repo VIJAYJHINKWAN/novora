@@ -72,6 +72,7 @@ export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = React.memo(({
       {label && <Text style={[styles.label, isFocused && styles.labelFocused]}>{label}</Text>}
       <Pressable
         onPress={handleContainerPress}
+        focusable={false}
         style={[
           styles.inputWrapper,
           multiline && styles.multilineWrapper,
@@ -104,6 +105,8 @@ export const PageTurnTextField: React.FC<PageTurnTextFieldProps> = React.memo(({
           textContentType={textContentType}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          cursorColor={Colors.primaryAccent}
+          selectionColor="rgba(193, 140, 93, 0.3)"
           testID={testID}
           style={[
             styles.input,
@@ -194,5 +197,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     textAlignVertical: 'center',
     includeFontPadding: false,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
 });

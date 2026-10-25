@@ -67,7 +67,7 @@ CREATE TABLE books (
     is_wishlist     BOOLEAN NOT NULL DEFAULT FALSE,
     is_exchangeable BOOLEAN NOT NULL DEFAULT TRUE,
     is_lendable     BOOLEAN NOT NULL DEFAULT TRUE,
-    cover_url       VARCHAR(500) NULL,
+    cover_url       MEDIUMTEXT NULL,
     likes_count     INT NOT NULL DEFAULT 0,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE

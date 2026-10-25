@@ -234,55 +234,54 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          {/* Header Brand Badge & Hero */}
-          <View style={styles.header}>
-            <View style={styles.brandBadge}>
-              <Image source={require('../assets/icon.png')} style={styles.brandLogo} resizeMode="contain" />
-            </View>
-            <Text style={styles.heroTitle}>Novora</Text>
-            <Text style={styles.heroSubtitle}>
-              {mode === 'login'
-                ? 'Sign in to join regional book exchanges and literary salons.'
-                : 'Create your reader account to connect with fellow book lovers.'}
-            </Text>
-          </View>
-
-          {/* Elevated Auth Card */}
-          <View style={styles.cardContainer}>
-            {/* Top Toggle: Sign In / Create Account */}
-            <View style={styles.modeToggleContainer}>
-              <TouchableOpacity
-                style={[styles.modeToggleTab, mode === 'login' && styles.modeToggleTabActive]}
-                onPress={() => {
-                  setAuthFeedback(null);
-                  setMode('login');
-                }}
-              >
-                <Text style={[styles.modeToggleText, mode === 'login' && styles.modeToggleTextActive]}>
-                  Sign In
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modeToggleTab, mode === 'register' && styles.modeToggleTabActive]}
-                onPress={() => {
-                  setAuthFeedback(null);
-                  setMode('register');
-                }}
-              >
-                <Text style={[styles.modeToggleText, mode === 'register' && styles.modeToggleTextActive]}>
-                  Sign Up
-                </Text>
-              </TouchableOpacity>
+          <View style={styles.contentWrapper}>
+            {/* Header Brand Badge & Hero */}
+            <View style={styles.header}>
+              <View style={styles.brandBadge}>
+                <Image source={require('../assets/icon.png')} style={styles.brandLogo} resizeMode="contain" />
+              </View>
+              <Text style={styles.heroTitle}>Novora</Text>
+              <Text style={styles.heroSubtitle}>
+                {mode === 'login'
+                  ? 'Sign in to join regional book exchanges and literary salons.'
+                  : 'Create your reader account to connect with fellow book lovers.'}
+              </Text>
             </View>
 
-            {/* Contextual Auth Notification Banner */}
-            {authFeedback && (
-              <View
-                style={[
-                  styles.authBanner,
-                  authFeedback.type === 'not_registered'
-                    ? styles.authBannerNotRegistered
+            {/* Elevated Auth Card */}
+            <View style={styles.cardContainer}>
+              {mode === 'register' && (
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => {
+                    setAuthFeedback(null);
+                    setMode('login');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="arrow-back" size={18} color={Colors.primaryAccent} />
+                  <Text style={styles.backButtonText}>Back to Sign In</Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>
+                  {mode === 'login' ? 'Sign In' : 'Create Account'}
+                </Text>
+                <Text style={styles.cardSubtitle}>
+                  {mode === 'login'
+                    ? 'Enter your credentials to access your account'
+                    : 'Join Novora to connect with fellow book lovers'}
+                </Text>
+              </View>
+
+              {/* Contextual Auth Notification Banner */}
+              {authFeedback && (
+                <View
+                  style={[
+                    styles.authBanner,
+                    authFeedback.type === 'not_registered'
+                      ? styles.authBannerNotRegistered
                     : styles.authBannerIncorrect,
                 ]}
               >
@@ -457,7 +456,8 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </View>
+      </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Forgot Password Reset Modal */}
@@ -489,16 +489,24 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Platform.OS === 'web' ? '#F7F8FA' : Colors.background,
   },
   keyboardAvoid: {
     flex: 1,
+    width: '100%',
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingTop: Platform.OS === 'web' ? 48 : 20,
+    paddingBottom: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contentWrapper: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
   },
   header: {
     alignItems: 'center',
@@ -509,7 +517,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 20,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: Colors.border,
     justifyContent: 'center',
@@ -544,49 +552,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   cardContainer: {
-    backgroundColor: Colors.cardBg,
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 22,
+    padding: 24,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    elevation: 4,
+    ...(Platform.OS === 'web'
+      ? {
+          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.04)',
+        }
+      : {}),
   },
-  modeToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 4,
+  cardHeader: {
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
-  modeToggleTab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modeToggleTabActive: {
-    backgroundColor: Colors.primaryAccent,
-    shadowColor: Colors.primaryAccent,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modeToggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.secondaryText,
-  },
-  modeToggleTextActive: {
-    color: '#FFFFFF',
+  cardTitle: {
+    fontFamily: Fonts.serif,
+    fontSize: 22,
     fontWeight: '700',
+    color: Colors.primaryText,
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 13,
+    color: Colors.secondaryText,
+    lineHeight: 18,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primaryAccent,
+    marginLeft: 6,
   },
   formSection: {
     marginBottom: 6,

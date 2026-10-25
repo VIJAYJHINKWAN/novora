@@ -6,13 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
+  RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../constants/theme';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../../components/BookCover';
 import { PageTurnBadge } from '../../components/PageTurnBadge';
 import { BookDetailsSheet } from '../../components/modals/BookDetailsSheet';
 import { ChatScreenOverlay } from '../../components/modals/ChatScreenOverlay';
+import { SlideIndicatorScrollView } from '../../components/SlideIndicatorScrollView';
 
 export default function LibraryScreen() {
   const {
@@ -26,8 +30,28 @@ export default function LibraryScreen() {
     selectedChatId,
     selectChat,
     updateBookAvailability,
+    updateBookCover,
+    deleteBook,
+    promptDeleteBook,
+    refreshAppData,
   } = useApp();
   const [activeFilter, setActiveFilter] = useState('All');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshAppData();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleDeleteBook = (book: any) => {
+    if (book.isOwned) {
+      promptDeleteBook(book);
+    }
+  };
 
   const filters = ['All', 'My Shelf', 'Read', 'Wishlist', 'Exchangeable', 'Lendable'];
 
@@ -56,9 +80,23 @@ export default function LibraryScreen() {
         <Text style={styles.headerSubtitle}>Manage your shelf, wishlist, and active swaps.</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Filter Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[Colors.primaryAccent]}
+            tintColor={Colors.primaryAccent}
+          />
+        }
+      >
+        {/* Filter Chips with slide indicator arrow */}
+        <SlideIndicatorScrollView
+          style={styles.chipsContainer}
+          contentContainerStyle={{ paddingRight: 24 }}
+        >
           {filters.map(filter => (
             <TouchableOpacity
               key={filter}
@@ -70,17 +108,30 @@ export default function LibraryScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </SlideIndicatorScrollView>
 
         {/* Books Grid */}
         <View style={styles.grid}>
           {filteredBooks.map(book => (
-            <TouchableOpacity
-              key={book.id}
-              style={styles.gridItem}
-              onPress={() => selectBook(book)}
-            >
-              <BookCover title={book.title} author={book.author} coverId={book.coverResId} coverUrl={book.coverUrl} style={styles.cover} />
+            <View key={book.id} style={styles.gridItem}>
+              <View style={styles.gridCoverWrapper}>
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  onPress={() => selectBook(book)}
+                >
+                  <BookCover title={book.title} author={book.author} coverId={book.coverResId} coverUrl={book.coverUrl} style={styles.cover} />
+                </TouchableOpacity>
+                {book.isOwned && (
+                  <TouchableOpacity
+                    style={styles.gridDeleteBtn}
+                    onPress={() => handleDeleteBook(book)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="trash" size={11} color="#FFFFFF" />
+                  </TouchableOpacity>
+                )}
+              </View>
               <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
               <Text style={styles.bookAuthor} numberOfLines={1}>{book.author}</Text>
 
@@ -88,7 +139,7 @@ export default function LibraryScreen() {
                 {book.isExchangeable && <PageTurnBadge text="Exchange" isSuccess style={{ marginTop: 4 }} />}
                 {book.isWishlist && <PageTurnBadge text="Wishlist" isAccent style={{ marginTop: 4 }} />}
               </View>
-            </TouchableOpacity>
+            </View>
           ))}
         </View>
       </ScrollView>
@@ -111,9 +162,13 @@ export default function LibraryScreen() {
             selectBook(null);
           }}
           onToggleLike={() => toggleLikeBook(selectedBook)}
-          onToggleAvailability={(isExchangeable, isLendable) => {
+          onToggleAvailability={selectedBook.isOwned ? (isExchangeable, isLendable) => {
             updateBookAvailability(selectedBook.id, isExchangeable, isLendable);
-          }}
+          } : undefined}
+          onUpdateCover={selectedBook.isOwned ? (coverUrl) => {
+            updateBookCover(selectedBook.id, coverUrl);
+          } : undefined}
+          onDeleteBook={selectedBook.isOwned ? promptDeleteBook : undefined}
         />
       )}
 
@@ -152,7 +207,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   chipsContainer: {
     paddingLeft: 20,
@@ -185,6 +240,27 @@ const styles = StyleSheet.create({
     width: '33.33%',
     padding: 6,
     marginBottom: 12,
+  },
+  gridCoverWrapper: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  gridDeleteBtn: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   cover: {
     height: 140,

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
+import { SlideIndicatorScrollView } from './SlideIndicatorScrollView';
 
 export type AvailabilityFilterType = 'ALL' | 'OTHERS' | 'SWAP' | 'BORROW';
 
@@ -70,6 +71,8 @@ export const BookSearchBar: React.FC<BookSearchBarProps> = ({
           returnKeyType="search"
           autoCapitalize="none"
           autoCorrect={false}
+          cursorColor={Colors.primaryAccent}
+          selectionColor="rgba(193, 140, 93, 0.3)"
           style={styles.input}
         />
 
@@ -85,10 +88,8 @@ export const BookSearchBar: React.FC<BookSearchBarProps> = ({
         )}
       </View>
 
-      {/* Filter Chips Row */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
+      {/* Filter Chips Row with slide indicator arrow */}
+      <SlideIndicatorScrollView
         contentContainerStyle={styles.filterScroll}
         style={styles.filterContainer}
       >
@@ -113,7 +114,7 @@ export const BookSearchBar: React.FC<BookSearchBarProps> = ({
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </SlideIndicatorScrollView>
 
       {/* Active Search Summary Banner */}
       {isSearching && (
@@ -179,6 +180,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.primaryText,
     paddingVertical: Platform.OS === 'android' ? 0 : 6,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   clearBtn: {
     padding: 4,
@@ -189,7 +192,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   filterScroll: {
-    paddingRight: 16,
+    paddingRight: 10,
   },
   filterChip: {
     flexDirection: 'row',

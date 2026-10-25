@@ -63,7 +63,12 @@ class BookController
             $body['coverUrl'] ?? ($body['cover_url'] ?? null),
         ]);
 
-        self::json(['status' => 'success', 'id' => (int) $db->lastInsertId()], 201);
+        $bookId = (int) $db->lastInsertId();
+
+        // Award +10 points to user on adding to collection
+        $db->prepare('UPDATE users SET reading_score = reading_score + 10 WHERE id = ?')->execute([$userId]);
+
+        self::json(['status' => 'success', 'id' => $bookId], 201);
     }
 
     // POST /api/books/{id}/like - toggle like for the current user
@@ -110,6 +115,13 @@ class BookController
             $fields[] = 'is_lendable = ?';
             $params[] = !empty($body['isLendable']) ? 1 : 0;
         }
+        if (array_key_exists('coverUrl', $body)) {
+            $fields[] = 'cover_url = ?';
+            $params[] = $body['coverUrl'] ?: null;
+        } elseif (array_key_exists('cover_url', $body)) {
+            $fields[] = 'cover_url = ?';
+            $params[] = $body['cover_url'] ?: null;
+        }
 
         if (!empty($fields)) {
             $params[] = $bookId;
@@ -118,6 +130,43 @@ class BookController
         }
 
         self::json(['status' => 'success']);
+    }
+
+    // DELETE /api/books/{id} - delete a book entirely from the database (only allowed if owned by current user)
+    public static function delete(?int $userId, int $bookId): void
+    {
+        $db = Database::getConnection();
+
+        // Check if book exists
+        $check = $db->prepare('SELECT id, owner_id FROM books WHERE id = ?');
+        $check->execute([$bookId]);
+        $book = $check->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$book) {
+            self::json(['status' => 'success', 'message' => 'Book already removed or does not exist']);
+            return;
+        }
+
+        // Strict Ownership Enforcement: Users can only delete books they uploaded!
+        if ($userId === null || (int) $book['owner_id'] !== (int) $userId) {
+            self::json(['status' => 'error', 'message' => 'Forbidden: You can only delete books that you uploaded.'], 403);
+            return;
+        }
+
+        // Delete from book_likes first to ensure clean removal
+        $db->prepare('DELETE FROM book_likes WHERE book_id = ?')->execute([$bookId]);
+
+        // Delete the book entirely from the database
+        $stmt = $db->prepare('DELETE FROM books WHERE id = ?');
+        $stmt->execute([$bookId]);
+
+        // Adjust points
+        $targetUserId = $userId ?: (int) $book['owner_id'];
+        if ($targetUserId > 0) {
+            $db->prepare('UPDATE users SET reading_score = GREATEST(0, reading_score - 10) WHERE id = ?')->execute([$targetUserId]);
+        }
+
+        self::json(['status' => 'success', 'message' => 'Book deleted successfully from database']);
     }
 
     private static function json(array $data, int $statusCode = 200): void

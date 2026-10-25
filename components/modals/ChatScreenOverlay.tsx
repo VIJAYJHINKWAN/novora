@@ -117,6 +117,8 @@ export const ChatScreenOverlay: React.FC<ChatScreenOverlayProps> = ({
             onChangeText={setInputText}
             placeholder="Type a message..."
             placeholderTextColor="rgba(85,85,85,0.5)"
+            cursorColor={Colors.primaryAccent}
+            selectionColor="rgba(193, 140, 93, 0.3)"
             style={styles.textInput}
           />
           <TouchableOpacity
@@ -258,6 +260,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primaryText,
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   sendBtn: {
     width: 40,

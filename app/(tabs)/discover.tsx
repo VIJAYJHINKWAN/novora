@@ -13,6 +13,7 @@ import { useApp } from '../../context/AppContext';
 import { PageTurnTextField } from '../../components/PageTurnTextField';
 import { PageTurnBadge } from '../../components/PageTurnBadge';
 import { PageTurnButton } from '../../components/PageTurnButton';
+import { SlideIndicatorScrollView } from '../../components/SlideIndicatorScrollView';
 
 export default function DiscoverScreen() {
   const {
@@ -55,7 +56,10 @@ export default function DiscoverScreen() {
         </View>
 
         {/* Category Chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsContainer}>
+        <SlideIndicatorScrollView
+          style={styles.chipsContainer}
+          contentContainerStyle={{ paddingRight: 24 }}
+        >
           {categories.map(cat => (
             <TouchableOpacity
               key={cat}
@@ -67,7 +71,7 @@ export default function DiscoverScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </SlideIndicatorScrollView>
 
         {/* Events List */}
         <View style={styles.listSection}>
@@ -137,7 +141,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   searchSection: {
     paddingHorizontal: 20,

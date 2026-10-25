@@ -14,6 +14,7 @@ interface BookSearchResultCardProps {
   onBorrow: () => void;
   onMessage: () => void;
   onToggleLike?: () => void;
+  onDelete?: () => void;
 }
 
 export const BookSearchResultCard: React.FC<BookSearchResultCardProps> = ({
@@ -23,6 +24,7 @@ export const BookSearchResultCard: React.FC<BookSearchResultCardProps> = ({
   onBorrow,
   onMessage,
   onToggleLike,
+  onDelete,
 }) => {
   // Determine Availability Badge
   const getAvailabilityInfo = () => {
@@ -57,103 +59,101 @@ export const BookSearchResultCard: React.FC<BookSearchResultCardProps> = ({
   const avail = getAvailabilityInfo();
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.9}
-      onPress={onPress}
-    >
-      {/* Top Main Section: Cover + Book Info */}
-      <View style={styles.topSection}>
-        <BookCover
-          title={book.title}
-          author={book.author}
-          coverId={book.coverResId}
-          coverUrl={book.coverUrl}
-          style={styles.cover}
-        />
+    <View style={styles.card}>
+      <TouchableOpacity activeOpacity={0.88} onPress={onPress}>
+        {/* Top Main Section: Cover + Book Info */}
+        <View style={styles.topSection}>
+          <BookCover
+            title={book.title}
+            author={book.author}
+            coverId={book.coverResId}
+            coverUrl={book.coverUrl}
+            style={styles.cover}
+          />
 
-        <View style={styles.bookInfo}>
-          {/* Genre and Like Button */}
-          <View style={styles.genreRow}>
-            <PageTurnBadge text={book.genre} isAccent />
-            {onToggleLike && (
-              <TouchableOpacity
-                onPress={onToggleLike}
-                style={styles.heartBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name={book.isLiked ? 'heart' : 'heart-outline'}
-                  size={18}
-                  color={book.isLiked ? Colors.alertAccent : Colors.secondaryText}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
+          <View style={styles.bookInfo}>
+            {/* Genre and Like Button */}
+            <View style={styles.genreRow}>
+              <PageTurnBadge text={book.genre} isAccent />
+              {onToggleLike && (
+                <TouchableOpacity
+                  onPress={onToggleLike}
+                  style={styles.heartBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={book.isLiked ? 'heart' : 'heart-outline'}
+                    size={18}
+                    color={book.isLiked ? Colors.alertAccent : Colors.secondaryText}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
 
-          <Text style={styles.title} numberOfLines={2}>
-            {book.title}
-          </Text>
-          <Text style={styles.author} numberOfLines={1}>
-            by {book.author}
-          </Text>
+            <Text style={styles.title} numberOfLines={2}>
+              {book.title}
+            </Text>
+            <Text style={styles.author} numberOfLines={1}>
+              by {book.author}
+            </Text>
 
-          {/* Rating */}
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={14} color="#FFD700" />
-            <Text style={styles.ratingText}>{book.rating.toFixed(1)} / 5.0</Text>
-          </View>
+            {/* Rating */}
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={14} color="#FFD700" />
+              <Text style={styles.ratingText}>{book.rating.toFixed(1)} / 5.0</Text>
+            </View>
 
-          {/* Availability Status Badge */}
-          <View
-            style={[
-              styles.availPill,
-              avail.type === 'success' && styles.availPillSuccess,
-              avail.type === 'accent' && styles.availPillAccent,
-              avail.type === 'muted' && styles.availPillMuted,
-            ]}
-          >
-            <Ionicons
-              name={avail.icon}
-              size={13}
-              color={
-                avail.type === 'success'
-                  ? Colors.successAccent
-                  : avail.type === 'accent'
-                  ? Colors.primaryAccent
-                  : Colors.secondaryText
-              }
-            />
-            <Text
+            {/* Availability Status Badge */}
+            <View
               style={[
-                styles.availPillText,
-                avail.type === 'success' && styles.availPillTextSuccess,
-                avail.type === 'accent' && styles.availPillTextAccent,
-                avail.type === 'muted' && styles.availPillTextMuted,
+                styles.availPill,
+                avail.type === 'success' && styles.availPillSuccess,
+                avail.type === 'accent' && styles.availPillAccent,
+                avail.type === 'muted' && styles.availPillMuted,
               ]}
-              numberOfLines={1}
             >
-              {avail.text}
+              <Ionicons
+                name={avail.icon}
+                size={13}
+                color={
+                  avail.type === 'success'
+                    ? Colors.successAccent
+                    : avail.type === 'accent'
+                    ? Colors.primaryAccent
+                    : Colors.secondaryText
+                }
+              />
+              <Text
+                style={[
+                  styles.availPillText,
+                  avail.type === 'success' && styles.availPillTextSuccess,
+                  avail.type === 'accent' && styles.availPillTextAccent,
+                  avail.type === 'muted' && styles.availPillTextMuted,
+                ]}
+                numberOfLines={1}
+              >
+                {avail.text}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Middle Section: Uploader Profile Card */}
+        <View style={styles.uploaderCard}>
+          <UserAvatar name={book.ownerName} size={36} />
+          <View style={styles.uploaderDetails}>
+            <Text style={styles.uploaderLabel}>
+              {book.isOwned ? 'YOUR SHELF' : 'UPLOADED BY'}
+            </Text>
+            <Text style={styles.uploaderName}>
+              {book.ownerName} {book.isOwned ? '(You)' : ''}
+            </Text>
+            <Text style={styles.uploaderDistance}>
+              📍 {book.ownerDistance} • {book.ownerRating}★ Owner Rating
             </Text>
           </View>
         </View>
-      </View>
-
-      {/* Middle Section: Uploader Profile Card */}
-      <View style={styles.uploaderCard}>
-        <UserAvatar name={book.ownerName} size={36} />
-        <View style={styles.uploaderDetails}>
-          <Text style={styles.uploaderLabel}>
-            {book.isOwned ? 'YOUR SHELF' : 'UPLOADED BY'}
-          </Text>
-          <Text style={styles.uploaderName}>
-            {book.ownerName} {book.isOwned ? '(You)' : ''}
-          </Text>
-          <Text style={styles.uploaderDistance}>
-            📍 {book.ownerDistance} • {book.ownerRating}★ Owner Rating
-          </Text>
-        </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Bottom Section: Related Action Options */}
       <View style={styles.actionRow}>
@@ -226,13 +226,26 @@ export const BookSearchResultCard: React.FC<BookSearchResultCardProps> = ({
             </TouchableOpacity>
           </>
         ) : (
-          <View style={styles.ownedBadgeContainer}>
-            <Ionicons name="bookmark" size={15} color={Colors.primaryAccent} />
-            <Text style={styles.ownedBadgeText}>Uploaded by You • In Your Library</Text>
+          <View style={styles.ownedActionRow}>
+            <View style={styles.ownedBadgeContainer}>
+              <Ionicons name="bookmark" size={14} color={Colors.primaryAccent} />
+              <Text style={styles.ownedBadgeText}>Uploaded by You</Text>
+            </View>
+            {onDelete && (
+              <TouchableOpacity
+                style={styles.deleteCardBtn}
+                onPress={onDelete}
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="trash-outline" size={14} color={Colors.alertAccent} />
+                <Text style={styles.deleteCardBtnText}>Delete</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -414,6 +427,12 @@ const styles = StyleSheet.create({
   btnTextDisabled: {
     color: Colors.secondaryText,
   },
+  ownedActionRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   ownedBadgeContainer: {
     flex: 1,
     flexDirection: 'row',
@@ -428,5 +447,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primaryAccent,
     marginLeft: 6,
+  },
+  deleteCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(163, 74, 61, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(163, 74, 61, 0.35)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 4,
+  },
+  deleteCardBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.alertAccent,
   },
 });

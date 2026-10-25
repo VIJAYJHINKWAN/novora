@@ -73,6 +73,7 @@ export interface UserProfile {
   bio: string;
   location: string;
   readingScore: number;
+  points?: number;
   stats: string;
   genres: string;
   goals: string;

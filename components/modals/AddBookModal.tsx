@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
+  Alert,
 } from 'react-native';
+import { DevicePhotoPickerModal } from './DevicePhotoPickerModal';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../constants/theme';
 import { PageTurnTextField } from '../PageTurnTextField';
@@ -50,6 +52,11 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
   const [isExchangeable, setIsExchangeable] = useState(true);
   const [isLendable, setIsLendable] = useState(true);
   const [coverUrl, setCoverUrl] = useState('');
+  const [actualBookPhoto, setActualBookPhoto] = useState<string | null>(null);
+  const [webDerivedCoverUrl, setWebDerivedCoverUrl] = useState<string | null>(null);
+  const [customPhotoUri, setCustomPhotoUri] = useState<string | null>(null);
+  const [coverSource, setCoverSource] = useState<'web' | 'custom' | 'gradient'>('web');
+  const [showDevicePickerModal, setShowDevicePickerModal] = useState(false);
 
   // Autocomplete suggestions state
   const [suggestions, setSuggestions] = useState<BookSuggestion[]>([]);
@@ -69,7 +76,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
   const [customGenreText, setCustomGenreText] = useState('');
 
   const classifications = ['Owned', 'Read', 'Currently Reading', 'Wishlist'];
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<any>(null);
 
   // Authors suggested based on current title search results
   const authorSuggestions = Array.from(
@@ -131,7 +138,12 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
     try {
       const res = await fetchOriginalCover(t, a);
       if (res.coverUrl) {
-        setCoverUrl(res.coverUrl);
+        setWebDerivedCoverUrl(res.coverUrl);
+        // Only apply web cover if user hasn't explicitly chosen their own custom photo
+        if (coverSource !== 'custom') {
+          setCoverUrl(res.coverUrl);
+          setCoverSource('web');
+        }
       }
       if (res.summary && !summary.trim()) {
         setSummary(res.summary);
@@ -178,9 +190,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
     setAutofilledBookTitle(item.title);
     setShowSuggestions(false);
 
-    // Immediately change the cover to original cover if present on the item
+    // Immediately record and apply web cover if present
     if (item.coverUrl) {
-      setCoverUrl(item.coverUrl);
+      setWebDerivedCoverUrl(item.coverUrl);
+      if (coverSource !== 'custom') {
+        setCoverUrl(item.coverUrl);
+        setCoverSource('web');
+      }
     }
 
     setSummary(item.summary || '');
@@ -228,23 +244,126 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
     }
   };
 
+  // Three community availability states:
+  // - Swap selected: can also select Borrow, and vice-versa
+  // - Unavailable selected: deselects both Swap and Borrow
+  const handleSelectSwap = () => {
+    if (!isExchangeable && !isLendable) {
+      // Was Unavailable -> now Swap only
+      setIsExchangeable(true);
+      setIsLendable(false);
+    } else if (isExchangeable && !isLendable) {
+      // Toggle off -> becomes Unavailable
+      setIsExchangeable(false);
+    } else if (isExchangeable && isLendable) {
+      // Was both -> toggle off swap, leaves borrow
+      setIsExchangeable(false);
+    } else {
+      // Was borrow only -> add swap (both are now active)
+      setIsExchangeable(true);
+    }
+  };
+
+  const handleSelectBorrow = () => {
+    if (!isExchangeable && !isLendable) {
+      // Was Unavailable -> now Borrow only
+      setIsLendable(true);
+      setIsExchangeable(false);
+    } else if (!isExchangeable && isLendable) {
+      // Toggle off -> becomes Unavailable
+      setIsLendable(false);
+    } else if (isExchangeable && isLendable) {
+      // Was both -> toggle off borrow, leaves swap
+      setIsLendable(false);
+    } else {
+      // Was swap only -> add borrow (both are now active)
+      setIsLendable(true);
+    }
+  };
+
+  const handleSelectUnavailable = () => {
+    setIsExchangeable(false);
+    setIsLendable(false);
+  };
+
+  // Photo picker handler: opens the modal to Choose from Gallery or Take Photo
+  const handleOpenPhotoPicker = () => {
+    setShowDevicePickerModal(true);
+  };
+
+  const handleSelectCustomPhoto = (uri: string) => {
+    setCustomPhotoUri(uri);
+    setActualBookPhoto(uri);
+    setCoverSource('custom');
+    setCoverUrl(uri);
+    setShowDevicePickerModal(false);
+  };
+
+  const handleUseWebCover = () => {
+    if (webDerivedCoverUrl) {
+      setCoverSource('web');
+      setCoverUrl(webDerivedCoverUrl);
+    }
+  };
+
+  const handleUseCustomPhoto = () => {
+    if (customPhotoUri) {
+      setCoverSource('custom');
+      setCoverUrl(customPhotoUri);
+    }
+  };
+
+  const handleResetToGradient = () => {
+    setCoverSource('gradient');
+    setCoverUrl('');
+  };
+
+  const handleRemoveCustomPhoto = () => {
+    setCustomPhotoUri(null);
+    setActualBookPhoto(null);
+    if (coverSource === 'custom') {
+      if (webDerivedCoverUrl) {
+        setCoverSource('web');
+        setCoverUrl(webDerivedCoverUrl);
+      } else {
+        setCoverSource('gradient');
+        setCoverUrl('');
+      }
+    }
+  };
+
   const handleSubmit = () => {
     if (!title.trim() || !author.trim()) return;
+    let finalCover: string | undefined = undefined;
+    if (coverSource === 'custom' && customPhotoUri) {
+      finalCover = customPhotoUri;
+    } else if (coverSource === 'web' && (coverUrl || webDerivedCoverUrl)) {
+      finalCover = coverUrl || webDerivedCoverUrl || undefined;
+    } else if (coverUrl) {
+      finalCover = coverUrl;
+    }
+    finalCover = (finalCover || '').trim() || undefined;
+
     onAddBook(
       title.trim(),
       author.trim(),
       genre,
       summary.trim(),
       classification,
-      coverUrl.trim() || undefined,
+      finalCover,
       isExchangeable,
       isLendable
+    );
+    Alert.alert(
+      'Book Added to Collection!',
+      '🎉 You earned +10 Community Points! Check your profile to view your updated points.'
     );
     onDismiss();
   };
 
   return (
-    <Modal animationType="slide" transparent visible onRequestClose={onDismiss}>
+    <>
+      <Modal animationType="slide" transparent visible onRequestClose={onDismiss}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onDismiss} />
         <View style={styles.sheetContainer}>
@@ -266,12 +385,22 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
           >
             {/* Live Book Cover Preview Banner */}
             <View style={styles.previewCard}>
-              <BookCover
-                title={title || 'Book Title'}
-                author={author || 'Author'}
-                coverUrl={coverUrl || null}
-                style={styles.previewCover}
-              />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleOpenPhotoPicker}
+                style={styles.previewCoverWrapper}
+              >
+                <BookCover
+                  title={title || 'Book Title'}
+                  author={author || 'Author'}
+                  coverUrl={coverUrl || null}
+                  style={styles.previewCover}
+                />
+                <View style={styles.previewCoverCameraBadge}>
+                  <Ionicons name="camera" size={12} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+
               <View style={styles.previewInfo}>
                 <View style={styles.coverBadgeRow}>
                   {isCoverLoading ? (
@@ -279,15 +408,20 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
                       <ActivityIndicator size="small" color={Colors.primaryAccent} />
                       <Text style={styles.loadingBadgeText}>Finding original cover...</Text>
                     </View>
-                  ) : coverUrl ? (
+                  ) : coverSource === 'custom' && customPhotoUri ? (
+                    <View style={styles.customPhotoBadge}>
+                      <Ionicons name="camera" size={13} color="#10B981" />
+                      <Text style={styles.customPhotoBadgeText}>Your Own Photo Cover ✓</Text>
+                    </View>
+                  ) : coverSource === 'web' && coverUrl ? (
                     <View style={styles.verifiedBadge}>
-                      <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                      <Text style={styles.verifiedText}>Original Cover Applied ✓</Text>
+                      <Ionicons name="checkmark-circle" size={13} color="#059669" />
+                      <Text style={styles.verifiedText}>Web Cover Art Applied ✓</Text>
                     </View>
                   ) : (
                     <View style={styles.defaultBadge}>
                       <Ionicons name="sparkles" size={12} color={Colors.primaryAccent} />
-                      <Text style={styles.defaultBadgeText}>Live Cover Preview</Text>
+                      <Text style={styles.defaultBadgeText}>Gradient Cover</Text>
                     </View>
                   )}
                 </View>
@@ -303,15 +437,51 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
                   <Text style={styles.previewGenreText}>{genre}</Text>
                 </View>
 
-                {coverUrl ? (
+                <View style={styles.coverQuickActionsRow}>
                   <TouchableOpacity
-                    style={styles.clearCoverBtn}
-                    onPress={() => setCoverUrl('')}
+                    style={styles.quickPhotoBtn}
+                    onPress={handleOpenPhotoPicker}
+                    activeOpacity={0.75}
                   >
-                    <Ionicons name="refresh-outline" size={12} color={Colors.secondaryText} />
-                    <Text style={styles.clearCoverText}>Reset to Gradient Cover</Text>
+                    <Ionicons name="camera-outline" size={12} color={Colors.primaryAccent} />
+                    <Text style={styles.quickPhotoBtnText}>
+                      {customPhotoUri ? 'Change Photo' : 'Upload Your Photo'}
+                    </Text>
                   </TouchableOpacity>
-                ) : null}
+
+                  {coverSource === 'custom' && webDerivedCoverUrl ? (
+                    <TouchableOpacity
+                      style={styles.switchCoverBtn}
+                      onPress={handleUseWebCover}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="image-outline" size={12} color={Colors.secondaryText} />
+                      <Text style={styles.switchCoverBtnText}>Use Web Cover</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {coverSource === 'web' && customPhotoUri ? (
+                    <TouchableOpacity
+                      style={styles.switchCoverBtn}
+                      onPress={handleUseCustomPhoto}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="camera" size={12} color={Colors.secondaryText} />
+                      <Text style={styles.switchCoverBtnText}>Use My Photo</Text>
+                    </TouchableOpacity>
+                  ) : null}
+
+                  {coverUrl ? (
+                    <TouchableOpacity
+                      style={styles.clearCoverBtn}
+                      onPress={handleResetToGradient}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="refresh-outline" size={11} color={Colors.secondaryText} />
+                      <Text style={styles.clearCoverText}>Reset</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
             </View>
 
@@ -520,6 +690,8 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
                   onChangeText={setCustomGenreText}
                   placeholder="e.g. Cyberpunk, Memoir, Space Opera..."
                   placeholderTextColor="rgba(85, 85, 85, 0.4)"
+                  cursorColor={Colors.primaryAccent}
+                  selectionColor="rgba(193, 140, 93, 0.3)"
                   style={styles.customGenreTextInput}
                   onSubmitEditing={handleApplyCustomGenre}
                   returnKeyType="done"
@@ -535,137 +707,161 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
             )}
 
             {/* Community Availability Settings */}
-            <Text style={styles.sectionLabel}>Community Availability (Decide Status)</Text>
-            <Text style={styles.sectionHelpText}>
-              Decide whether this book will be available for swap or borrow by other community readers:
-            </Text>
+            <Text style={styles.sectionLabel}>Community Availability</Text>
 
-            {/* Quick Preset Buttons */}
-            <View style={styles.presetButtonsRow}>
+            {/* Exactly 3 Availability Boxes: 1 Swap, 2 Borrow, 3 Unavailable */}
+            <View style={styles.availOptionsRow}>
+              {/* Box 1: Swap */}
               <TouchableOpacity
                 style={[
-                  styles.presetBtn,
-                  isExchangeable && isLendable && styles.presetBtnActive,
+                  styles.availOptionBtn,
+                  isExchangeable && styles.availOptionBtnActive,
                 ]}
-                onPress={() => {
-                  setIsExchangeable(true);
-                  setIsLendable(true);
-                }}
+                onPress={handleSelectSwap}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.presetBtnText, isExchangeable && isLendable && styles.presetBtnTextActive]}>
-                  ⇄ & 📖 Swap & Borrow
+                <Ionicons
+                  name="swap-horizontal"
+                  size={20}
+                  color={isExchangeable ? Colors.primaryAccent : Colors.secondaryText}
+                />
+                <Text
+                  style={[
+                    styles.availOptionBtnText,
+                    isExchangeable && styles.availOptionBtnTextActive,
+                  ]}
+                >
+                  Swap{isExchangeable ? ' ✓' : ''}
                 </Text>
               </TouchableOpacity>
 
+              {/* Box 2: Borrow */}
               <TouchableOpacity
                 style={[
-                  styles.presetBtn,
-                  isExchangeable && !isLendable && styles.presetBtnActive,
+                  styles.availOptionBtn,
+                  isLendable && styles.availOptionBtnActive,
                 ]}
-                onPress={() => {
-                  setIsExchangeable(true);
-                  setIsLendable(false);
-                }}
+                onPress={handleSelectBorrow}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.presetBtnText, isExchangeable && !isLendable && styles.presetBtnTextActive]}>
-                  ⇄ Swap Only
+                <Ionicons
+                  name="book-outline"
+                  size={20}
+                  color={isLendable ? Colors.primaryAccent : Colors.secondaryText}
+                />
+                <Text
+                  style={[
+                    styles.availOptionBtnText,
+                    isLendable && styles.availOptionBtnTextActive,
+                  ]}
+                >
+                  Borrow{isLendable ? ' ✓' : ''}
                 </Text>
               </TouchableOpacity>
 
+              {/* Box 3: Unavailable */}
               <TouchableOpacity
                 style={[
-                  styles.presetBtn,
-                  !isExchangeable && isLendable && styles.presetBtnActive,
+                  styles.availOptionBtn,
+                  !isExchangeable && !isLendable && styles.availOptionBtnActiveAlert,
                 ]}
-                onPress={() => {
-                  setIsExchangeable(false);
-                  setIsLendable(true);
-                }}
+                onPress={handleSelectUnavailable}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.presetBtnText, !isExchangeable && isLendable && styles.presetBtnTextActive]}>
-                  📖 Borrow Only
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.presetBtn,
-                  !isExchangeable && !isLendable && styles.presetBtnActiveAlert,
-                ]}
-                onPress={() => {
-                  setIsExchangeable(false);
-                  setIsLendable(false);
-                }}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.presetBtnText, !isExchangeable && !isLendable && styles.presetBtnTextActiveAlert]}>
-                  🔒 Unavailable
+                <Ionicons
+                  name="lock-closed"
+                  size={20}
+                  color={!isExchangeable && !isLendable ? Colors.alertAccent : Colors.secondaryText}
+                />
+                <Text
+                  style={[
+                    styles.availOptionBtnText,
+                    !isExchangeable && !isLendable && styles.availOptionBtnTextActiveAlert,
+                  ]}
+                >
+                  Unavailable{!isExchangeable && !isLendable ? ' ✓' : ''}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Interactive Availability Toggle Cards */}
-            <View style={styles.availabilityCardsRow}>
-              {/* Swap Toggle Card */}
-              <TouchableOpacity
-                style={[
-                  styles.availCard,
-                  isExchangeable ? styles.availCardActiveSwap : styles.availCardInactive,
-                ]}
-                onPress={() => setIsExchangeable(!isExchangeable)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.availCardHeader}>
-                  <View style={[styles.availIconCircle, isExchangeable && styles.availIconCircleSwap]}>
-                    <Ionicons
-                      name="swap-horizontal"
-                      size={18}
-                      color={isExchangeable ? Colors.successAccent : Colors.secondaryText}
-                    />
-                  </View>
-                  <View style={[styles.toggleBadge, isExchangeable ? styles.toggleBadgeOn : styles.toggleBadgeOff]}>
-                    <Text style={[styles.toggleBadgeText, isExchangeable ? styles.toggleBadgeTextOn : styles.toggleBadgeTextOff]}>
-                      {isExchangeable ? 'SWAP: ON' : 'SWAP: OFF'}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.availCardTitle}>Available for Swap</Text>
-                <Text style={styles.availCardDesc}>
-                  Other readers can offer an exchange for this book.
-                </Text>
-              </TouchableOpacity>
+            {/* Upload Photos Section */}
+            <View style={styles.photoUploadSection}>
+              <Text style={styles.sectionLabel}>Upload Photos</Text>
 
-              {/* Borrow Toggle Card */}
-              <TouchableOpacity
-                style={[
-                  styles.availCard,
-                  isLendable ? styles.availCardActiveBorrow : styles.availCardInactive,
-                ]}
-                onPress={() => setIsLendable(!isLendable)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.availCardHeader}>
-                  <View style={[styles.availIconCircle, isLendable && styles.availIconCircleBorrow]}>
-                    <Ionicons
-                      name="book-outline"
-                      size={18}
-                      color={isLendable ? Colors.primaryAccent : Colors.secondaryText}
-                    />
-                  </View>
-                  <View style={[styles.toggleBadge, isLendable ? styles.toggleBadgeOnAccent : styles.toggleBadgeOff]}>
-                    <Text style={[styles.toggleBadgeText, isLendable ? styles.toggleBadgeTextOnAccent : styles.toggleBadgeTextOff]}>
-                      {isLendable ? 'BORROW: ON' : 'BORROW: OFF'}
+              {customPhotoUri ? (
+                <View style={styles.uploadedPhotoCard}>
+                  <Image source={{ uri: customPhotoUri }} style={styles.uploadedPhotoImg} resizeMode="cover" />
+                  <View style={styles.uploadedPhotoInfo}>
+                    <View style={styles.uploadedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                      <Text style={styles.uploadedBadgeText}>Photo Attached ✓</Text>
+                    </View>
+                    <Text style={styles.uploadedPhotoHint}>
+                      {coverSource === 'custom'
+                        ? 'Applied as your book cover picture.'
+                        : 'Your photo is attached to this book.'}
                     </Text>
+                    <View style={styles.uploadedPhotoActions}>
+                      {coverSource !== 'custom' ? (
+                        <TouchableOpacity
+                          style={styles.setCoverBtn}
+                          onPress={handleUseCustomPhoto}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="sparkles" size={12} color={Colors.primaryAccent} />
+                          <Text style={styles.setCoverBtnText}>Set as Cover</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        webDerivedCoverUrl ? (
+                          <TouchableOpacity
+                            style={styles.switchWebBtn}
+                            onPress={handleUseWebCover}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="globe-outline" size={12} color={Colors.secondaryText} />
+                            <Text style={styles.switchWebBtnText}>Use Web Cover</Text>
+                          </TouchableOpacity>
+                        ) : null
+                      )}
+                      <TouchableOpacity
+                        style={styles.changePhotoBtn}
+                        onPress={handleOpenPhotoPicker}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="images-outline" size={13} color={Colors.primaryAccent} />
+                        <Text style={styles.changePhotoBtnText}>Change</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.removePhotoBtn}
+                        onPress={handleRemoveCustomPhoto}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="trash-outline" size={13} color={Colors.alertAccent} />
+                        <Text style={styles.removePhotoBtnText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-                <Text style={styles.availCardTitle}>Available to Borrow</Text>
-                <Text style={styles.availCardDesc}>
-                  Other readers can request to borrow this book.
-                </Text>
-              </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.singlePhotoUploadCard}
+                  onPress={handleOpenPhotoPicker}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.photoIconCircle}>
+                    <Ionicons name="camera" size={22} color={Colors.primaryAccent} />
+                  </View>
+                  <View style={styles.singlePhotoUploadContent}>
+                    <Text style={styles.singlePhotoUploadTitle}>Add Photo</Text>
+                    <Text style={styles.singlePhotoUploadSubtitle}>
+                      Tap to choose from gallery or take photo
+                    </Text>
+                  </View>
+                  <View style={styles.singlePhotoUploadAddIcon}>
+                    <Ionicons name="add" size={18} color="#FFFFFF" />
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Shelf Status */}
@@ -711,6 +907,14 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
         </View>
       </View>
     </Modal>
+    <DevicePhotoPickerModal
+      visible={showDevicePickerModal}
+      onDismiss={() => setShowDevicePickerModal(false)}
+      onSelectPhoto={(uri) => {
+        handleSelectCustomPhoto(uri);
+      }}
+    />
+  </>
   );
 };
 
@@ -781,11 +985,32 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  previewCoverWrapper: {
+    position: 'relative',
+    marginRight: 14,
+  },
   previewCover: {
     width: 68,
     height: 98,
     borderRadius: 8,
-    marginRight: 14,
+  },
+  previewCoverCameraBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: Colors.primaryAccent,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   previewInfo: {
     flex: 1,
@@ -820,6 +1045,20 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   verifiedText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  customPhotoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 4,
+  },
+  customPhotoBadgeText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#059669',
@@ -863,11 +1102,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primaryAccent,
   },
+  coverQuickActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  quickPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(193, 140, 93, 0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  quickPhotoBtnText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.primaryAccent,
+  },
+  switchCoverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.cardBg,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 3,
+  },
+  switchCoverBtnText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: Colors.secondaryText,
+  },
   clearCoverBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+    gap: 2,
   },
   clearCoverText: {
     fontSize: 10,
@@ -1121,6 +1398,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.primaryText,
     paddingVertical: Platform.OS === 'android' ? 4 : 8,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   customGenreAddBtn: {
     backgroundColor: Colors.primaryAccent,
@@ -1134,127 +1413,193 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  sectionHelpText: {
-    fontSize: 12,
-    color: Colors.secondaryText,
-    marginBottom: 10,
-    marginTop: -4,
-    lineHeight: 16,
-  },
-  presetButtonsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-    gap: 8,
-  },
-  presetBtn: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  presetBtnActive: {
-    backgroundColor: Colors.primaryAccent,
-    borderColor: Colors.primaryAccent,
-  },
-  presetBtnActiveAlert: {
-    backgroundColor: 'rgba(163, 74, 61, 0.12)',
-    borderColor: Colors.alertAccent,
-  },
-  presetBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.secondaryText,
-  },
-  presetBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  presetBtnTextActiveAlert: {
-    color: Colors.alertAccent,
-  },
-  availabilityCardsRow: {
+  availOptionsRow: {
     flexDirection: 'row',
     gap: 10,
     marginBottom: 16,
   },
-  availCard: {
+  availOptionBtn: {
     flex: 1,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1.5,
-  },
-  availCardActiveSwap: {
-    backgroundColor: 'rgba(112, 138, 129, 0.08)',
-    borderColor: Colors.successAccent,
-  },
-  availCardActiveBorrow: {
-    backgroundColor: 'rgba(193, 140, 93, 0.08)',
-    borderColor: Colors.primaryAccent,
-  },
-  availCardInactive: {
-    backgroundColor: Colors.cardBg,
-    borderColor: Colors.border,
-    opacity: 0.8,
-  },
-  availCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  availIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#FFFFFF',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  availIconCircleSwap: {
-    backgroundColor: 'rgba(112, 138, 129, 0.15)',
+  availOptionBtnActive: {
+    backgroundColor: 'rgba(193, 140, 93, 0.1)',
+    borderColor: Colors.primaryAccent,
+    shadowColor: Colors.primaryAccent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  availIconCircleBorrow: {
-    backgroundColor: 'rgba(193, 140, 93, 0.15)',
+  availOptionBtnActiveAlert: {
+    backgroundColor: 'rgba(163, 74, 61, 0.08)',
+    borderColor: Colors.alertAccent,
   },
-  toggleBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
+  availOptionBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+    marginTop: 6,
   },
-  toggleBadgeOn: {
-    backgroundColor: Colors.successAccent,
+  availOptionBtnTextActive: {
+    color: Colors.primaryAccent,
+    fontWeight: '700',
   },
-  toggleBadgeOnAccent: {
-    backgroundColor: Colors.primaryAccent,
+  availOptionBtnTextActiveAlert: {
+    color: Colors.alertAccent,
+    fontWeight: '700',
   },
-  toggleBadgeOff: {
-    backgroundColor: 'rgba(85, 85, 85, 0.12)',
+  // Photo Upload Section
+  photoUploadSection: {
+    marginBottom: 18,
   },
-  toggleBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
+  singlePhotoUploadCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(193, 140, 93, 0.35)',
+    borderStyle: 'dashed',
+    padding: 16,
+    marginTop: 6,
+    gap: 14,
   },
-  toggleBadgeTextOn: {
-    color: '#FFFFFF',
+  photoIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(193, 140, 93, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  toggleBadgeTextOnAccent: {
-    color: '#FFFFFF',
+  singlePhotoUploadContent: {
+    flex: 1,
   },
-  toggleBadgeTextOff: {
+  singlePhotoUploadTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.primaryText,
+    marginBottom: 2,
+  },
+  singlePhotoUploadSubtitle: {
+    fontSize: 12,
     color: Colors.secondaryText,
   },
-  availCardTitle: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: Colors.primaryText,
+  singlePhotoUploadAddIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryAccent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadedPhotoCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    padding: 12,
+    marginTop: 6,
+    alignItems: 'center',
+  },
+  uploadedPhotoImg: {
+    width: 65,
+    height: 90,
+    borderRadius: 10,
+    backgroundColor: Colors.cardBg,
+  },
+  uploadedPhotoInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  uploadedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
-  availCardDesc: {
-    fontSize: 10.5,
+  uploadedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#059669',
+    marginLeft: 5,
+  },
+  uploadedPhotoHint: {
+    fontSize: 11,
     color: Colors.secondaryText,
-    lineHeight: 14,
+    lineHeight: 15,
+    marginBottom: 8,
+  },
+  uploadedPhotoActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  setCoverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(193, 140, 93, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
+  },
+  setCoverBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primaryAccent,
+  },
+  switchWebBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.cardBg,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 4,
+  },
+  switchWebBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  changePhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  changePhotoBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.primaryAccent,
+    marginLeft: 4,
+  },
+  removePhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  removePhotoBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.alertAccent,
+    marginLeft: 4,
   },
 });

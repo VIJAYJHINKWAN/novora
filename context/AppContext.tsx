@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Book, Reader, Event, ChatMessage, ReadingStory, UserProfile, NavigationTab, AppScreen } from '../types';
 import { ApiService } from '../services/api';
 import { StorageService } from '../services/storage';
+import { DeleteConfirmationModal } from '../components/modals/DeleteConfirmationModal';
 
 interface AppContextType {
   currentScreen: AppScreen;
@@ -59,6 +61,9 @@ interface AppContextType {
     isLendable?: boolean
   ) => void;
   updateBookAvailability: (bookId: number, isExchangeable: boolean, isLendable: boolean) => Promise<void>;
+  updateBookCover: (bookId: number, coverUrl: string) => Promise<void>;
+  deleteBook: (bookId: number) => Promise<void>;
+  promptDeleteBook: (book: Book) => void;
 
   toggleEventRsvp: (event: Event) => void;
   addNewEvent: (
@@ -109,8 +114,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [readingStories, setReadingStories] = useState<ReadingStory[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    name: "", bio: "", location: "", readingScore: 0, stats: "", genres: "", goals: "",
-    verificationStatus: false, streak: 0, badges: [], monthlyGoal: 0, monthlyProgress: 0,
+    name: "", bio: "", location: "", readingScore: 880, points: 120, stats: "", genres: "", goals: "",
+    verificationStatus: false, streak: 14, badges: [], monthlyGoal: 4, monthlyProgress: 3,
   });
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
@@ -154,6 +159,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setUserProfile({
         name: profileRes.data.name || '', bio: profileRes.data.bio || '',
         location: profileRes.data.location || '', readingScore: profileRes.data.readingScore || 0,
+        points: profileRes.data.points ?? (profileRes.data.readingScore || 120),
         stats: `Reading Score: ${profileRes.data.readingScore || 0}`,
         genres: profileRes.data.genres || '', goals: profileRes.data.goals || '',
         verificationStatus: !!profileRes.data.verificationStatus, streak: profileRes.data.streak || 0,
@@ -273,6 +279,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ? isLendableParam
       : (classification !== "Wishlist" && classification !== "Read");
 
+    // Award +10 points to user profile on adding book to collection
+    setUserProfile(prev => {
+      const currentPoints = prev.points ?? (prev.readingScore || 120);
+      const newPoints = currentPoints + 10;
+      const newScore = (prev.readingScore || 0) + 10;
+      const updated = {
+        ...prev,
+        points: newPoints,
+        readingScore: newScore,
+        stats: `Reading Score: ${newScore}`,
+      };
+      StorageService.saveProfile(updated).catch(() => {});
+      return updated;
+    });
+
     try {
       await ApiService.addBook(title, author, genre, summary, isExchangeable, isLendable, coverUrl);
       const booksRes = await ApiService.getBooks();
@@ -330,6 +351,155 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await StorageService.saveBooks(updated);
     } catch (err) {}
   };
+
+  const updateBookCover = async (bookId: number, coverUrl: string) => {
+    const book = books.find(b => b.id === bookId);
+    if (book) {
+      const isOwned = Boolean(
+        book.isOwned ||
+        book.ownerName === userProfile.name ||
+        book.ownerName === 'You' ||
+        book.ownerName === 'Me'
+      );
+      if (!isOwned) {
+        Alert.alert('Permission Denied', 'You can only change the cover of books on your own shelf.');
+        return;
+      }
+    }
+
+    setBooks(prev =>
+      prev.map(b => (b.id === bookId ? { ...b, coverUrl } : b))
+    );
+    if (selectedBook?.id === bookId) {
+      setSelectedBook(prev => (prev ? { ...prev, coverUrl } : null));
+    }
+
+    try {
+      await ApiService.updateBookCover(bookId, coverUrl);
+    } catch (e) {
+      console.warn('API updateBookCover error, saved locally:', e);
+    }
+
+    try {
+      await StorageService.updateBookCover(bookId, coverUrl);
+    } catch (err) {}
+  };
+
+  const deleteBook = async (bookId: number) => {
+    const targetBook = books.find(b => b.id === bookId);
+    if (targetBook) {
+      const isOwned = Boolean(
+        targetBook.isOwned ||
+        targetBook.ownerName === userProfile.name ||
+        targetBook.ownerName === 'You' ||
+        targetBook.ownerName === 'Me'
+      );
+      if (!isOwned) {
+        Alert.alert(
+          'Cannot Delete Book',
+          'You can only delete books that you uploaded to your shelf. Books uploaded by other readers cannot be deleted.'
+        );
+        return;
+      }
+    }
+
+    // Optimistic UI update
+    setBooks(prev => prev.filter(b => b.id !== bookId));
+    if (selectedBook?.id === bookId) {
+      setSelectedBook(null);
+    }
+
+    setUserProfile(prev => {
+      const currentPoints = prev.points ?? (prev.readingScore || 120);
+      const newPoints = Math.max(0, currentPoints - 10);
+      const newScore = Math.max(0, (prev.readingScore || 0) - 10);
+      const updated = {
+        ...prev,
+        points: newPoints,
+        readingScore: newScore,
+        stats: `Reading Score: ${newScore}`,
+      };
+      StorageService.saveProfile(updated).catch(() => {});
+      return updated;
+    });
+
+    try {
+      await ApiService.deleteBook(bookId);
+    } catch (e) {
+      console.warn('API deleteBook error, updated locally:', e);
+    }
+
+    try {
+      await StorageService.deleteBook(bookId);
+    } catch (err) {}
+
+    // Synchronize state with MySQL database to ensure complete consistency
+    try {
+      const booksRes = await ApiService.getBooks();
+      if (booksRes?.data && Array.isArray(booksRes.data)) {
+        setBooks(booksRes.data.map(mapBook));
+      }
+    } catch (err) {}
+  };
+
+  const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
+  const [isDeletingBook, setIsDeletingBook] = useState(false);
+
+  const promptDeleteBook = (book: Book) => {
+    // Strict authorization: Only allow deleting user's own book
+    const isOwned = Boolean(
+      book.isOwned ||
+      book.ownerName === userProfile.name ||
+      book.ownerName === 'You' ||
+      book.ownerName === 'Me'
+    );
+
+    if (!isOwned) {
+      Alert.alert(
+        'Cannot Delete Book',
+        'You can only delete books that you uploaded to your shelf. Books uploaded by other members of the community cannot be deleted by you.'
+      );
+      return;
+    }
+
+    // Close selected book modal if currently open to prevent overlay stacking on Android
+    if (selectedBook?.id === book.id) {
+      setSelectedBook(null);
+    }
+    setBookToDelete(book);
+  };
+
+  const cancelDeleteBook = () => {
+    if (!isDeletingBook) {
+      setBookToDelete(null);
+    }
+  };
+
+  const confirmDeleteBook = async () => {
+    if (!bookToDelete) return;
+    setIsDeletingBook(true);
+    try {
+      await deleteBook(bookToDelete.id);
+      setBookToDelete(null);
+    } finally {
+      setIsDeletingBook(false);
+    }
+  };
+
+  // Live community synchronization: silently sync feed every 12 seconds so books removed by other readers disappear
+  useEffect(() => {
+    const syncTimer = setInterval(() => {
+      ApiService.getBooks()
+        .then(res => {
+          if (res?.data && Array.isArray(res.data)) {
+            setBooks(res.data.map(mapBook));
+          }
+        })
+        .catch(() => {});
+    }, 12000);
+
+    return () => clearInterval(syncTimer);
+  }, []);
 
   const toggleEventRsvp = async (event: Event) => {
     const res = await ApiService.toggleRsvp(event.id);
@@ -467,7 +637,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         books, readers, events, messages, readingStories, userProfile,
         activeStoryIndex, openStoryViewer, closeStoryViewer,
         showCreateStoryDialog, setShowCreateStoryDialog, addStory, toggleLikeStory,
-        toggleLikeBook, addNewBook, updateBookAvailability, toggleEventRsvp,
+        toggleLikeBook, addNewBook, updateBookAvailability, updateBookCover, deleteBook, promptDeleteBook, toggleEventRsvp,
         getMessagesForChat, getRecentChats, sendChatMessage, createExchangeRequest,
         createBorrowRequest,
         updateExchangeStatus, startBookChat, updateUserProfile, addNewEvent,
@@ -475,6 +645,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }}
     >
       {children}
+      <DeleteConfirmationModal
+        visible={!!bookToDelete}
+        book={bookToDelete}
+        isDeleting={isDeletingBook}
+        onConfirm={confirmDeleteBook}
+        onCancel={cancelDeleteBook}
+      />
     </AppContext.Provider>
   );
 };
